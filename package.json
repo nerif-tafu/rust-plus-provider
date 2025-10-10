@@ -1,0 +1,16 @@
+{
+    "name": "rust-plus-provider",
+    "version": "1.0.0",
+    "scripts": {
+      "start": "node server.js",
+      "test": "echo \"Error: no test specified\" && exit 1"
+    },
+  "dependencies": {
+    "@liamcottle/push-receiver": "^0.0.3",
+    "@liamcottle/rustplus.js": "git+https://github.com/JulianMa/rustplus.js.git#9f87ea17f3d330c23615757130855590ad84ac22",
+    "selenium-webdriver": "^4.15.0",
+    "axios": "^1.6.0",
+    "uuid": "^9.0.1",
+    "ws": "^8.14.0"
+  }
+  }
