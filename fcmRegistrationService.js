@@ -70,8 +70,16 @@ class FcmRegistrationService {
       
       // Don't crash the service for FCM registration errors
       if (error.message.includes('SessionNotCreatedError')) {
-        console.error('Chrome session creation failed - this may be due to system resource constraints');
-        throw new Error('FCM registration failed: Chrome session could not be created. Please try again later.');
+        const os = require('os');
+        const isWindows = os.platform() === 'win32';
+        
+        if (isWindows) {
+          console.error('Chrome session creation failed on Windows - this may be due to Chrome compatibility issues or system resource constraints');
+          throw new Error('FCM registration failed: Chrome session could not be created on Windows. Please ensure Chrome is properly installed and try again.');
+        } else {
+          console.error('Chrome session creation failed - this may be due to system resource constraints');
+          throw new Error('FCM registration failed: Chrome session could not be created. Please try again later.');
+        }
       }
       
       throw error;
@@ -128,11 +136,24 @@ class FcmRegistrationService {
       // Kill any existing Chrome processes to prevent conflicts
       try {
         const { exec } = require('child_process');
-        exec('pkill -f chrome || true', (error) => {
-          if (error && !error.message.includes('No matching processes')) {
-            console.log('Warning: Could not kill existing Chrome processes:', error.message);
-          }
-        });
+        const os = require('os');
+        const isWindows = os.platform() === 'win32';
+        
+        if (isWindows) {
+          // Windows command to kill Chrome processes
+          exec('taskkill /f /im chrome.exe 2>nul || echo "No Chrome processes found"', (error) => {
+            if (error && !error.message.includes('No matching processes')) {
+              console.log('Warning: Could not kill existing Chrome processes:', error.message);
+            }
+          });
+        } else {
+          // Unix/Linux command to kill Chrome processes
+          exec('pkill -f chrome || true', (error) => {
+            if (error && !error.message.includes('No matching processes')) {
+              console.log('Warning: Could not kill existing Chrome processes:', error.message);
+            }
+          });
+        }
         // Wait a moment for processes to be killed
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
@@ -141,6 +162,7 @@ class FcmRegistrationService {
       
       // Initialize Chrome driver
       const chrome = require('selenium-webdriver/chrome');
+      const { ServiceBuilder } = require('selenium-webdriver/chrome');
       const options = new chrome.Options();
       options.addArguments('--headless=new');
       options.addArguments('--no-sandbox');
@@ -156,14 +178,37 @@ class FcmRegistrationService {
       options.addArguments('--disable-features=TranslateUI');
       options.addArguments('--disable-ipc-flooding-protection');
       
+      // Windows-specific options for better stability
+      if (os.platform() === 'win32') {
+        options.addArguments('--disable-features=VizDisplayCompositor');
+        options.addArguments('--disable-software-rasterizer');
+        options.addArguments('--disable-background-mode');
+        options.addArguments('--disable-background-timer-throttling');
+        options.addArguments('--disable-renderer-backgrounding');
+        options.addArguments('--disable-backgrounding-occluded-windows');
+        options.addArguments('--disable-client-side-phishing-detection');
+        options.addArguments('--disable-component-update');
+        options.addArguments('--disable-domain-reliability');
+        options.addArguments('--disable-features=TranslateUI,BlinkGenPropertyTrees');
+        options.addArguments('--disable-hang-monitor');
+        options.addArguments('--disable-prompt-on-repost');
+        options.addArguments('--disable-sync');
+        options.addArguments('--disable-web-resources');
+        options.addArguments('--no-default-browser-check');
+        options.addArguments('--no-first-run');
+        options.addArguments('--no-pings');
+        options.addArguments('--no-zygote');
+        options.addArguments('--disable-gpu-sandbox');
+        options.addArguments('--disable-software-rasterizer');
+        options.addArguments('--disable-gpu-process-crash-limit');
+      }
+      
       // Use unique user data directory to avoid conflicts
-      const os = require('os');
       const path = require('path');
       this.userDataDir = path.join(os.homedir(), `.chrome-profile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
       options.addArguments(`--user-data-dir=${this.userDataDir}`);
       
-      // Additional options to prevent conflicts
-      options.addArguments('--single-process');
+      // Additional options to prevent conflicts (Windows-compatible)
       options.addArguments('--disable-background-networking');
       options.addArguments('--disable-default-apps');
       options.addArguments('--disable-sync');
@@ -180,11 +225,11 @@ class FcmRegistrationService {
       options.addArguments('--no-first-run');
       options.addArguments('--no-default-browser-check');
       options.addArguments('--no-pings');
-      options.addArguments('--no-zygote');
       
       this.driver = new Builder()
         .forBrowser('chrome')
         .setChromeOptions(options)
+        .setChromeService(new ServiceBuilder().setTimeout(30000)) // 30 second timeout
         .build();
       
       // Set window size as shown in the Selenium test
