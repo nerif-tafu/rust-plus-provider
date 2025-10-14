@@ -122,12 +122,20 @@ class RustPlusProvider {
                         this.loadServers();
                         break;
 
-                    case 'refresh_all_connections_success':
-                        console.log('Received refresh_all_connections_success message:', message);
-                        this.addLiveEvent('Connections Refreshed', message.data.message);
-                        // Refresh servers to show updated connection status
-                        this.loadServers();
-                        break;
+            case 'refresh_all_connections_success':
+                console.log('Received refresh_all_connections_success message:', message);
+                this.addLiveEvent('Connections Refreshed', message.data.message);
+                // Refresh servers to show updated connection status
+                this.loadServers();
+                break;
+                
+            case 'fcm_registration_success':
+                console.log('Received fcm_registration_success message:', message);
+                this.addLiveEvent('FCM Registration', 'FCM tokens registered successfully');
+                // Clear any error messages and refresh token status
+                this.clearFCMErrors();
+                this.loadTokenStatus();
+                break;
                 
                 
             case 'server_connected':
@@ -238,14 +246,29 @@ class RustPlusProvider {
                         break;
                 
             case 'error':
-                // Handle connection-related errors gracefully without alerts
-                if (message.data.error === 'Server not connected' || 
-                    message.data.error === 'Server not found or not connected') {
-                    console.warn('Server connection issue:', message.data.error);
-                    // Show subtle notification instead of alert
+                // Handle different types of errors with appropriate user feedback
+                const errorMessage = message.data.error;
+                
+                if (errorMessage === 'Server not connected' || 
+                    errorMessage === 'Server not found or not connected') {
+                    console.warn('Server connection issue:', errorMessage);
                     this.showServerNotConnectedNotification();
+                } else if (errorMessage.includes('Incorrect 2FA code')) {
+                    this.showFCMError('2FA Code Error', 'The 2FA code you entered is incorrect. Please check your authenticator app and try again.');
+                } else if (errorMessage.includes('Invalid username or password')) {
+                    this.showFCMError('Login Error', 'Invalid Steam username or password. Please check your credentials and try again.');
+                } else if (errorMessage.includes('Too Many Retries')) {
+                    this.showFCMError('Rate Limited', 'Too many login attempts. Please wait a few minutes before trying again.');
+                } else if (errorMessage.includes('Chrome session could not be created')) {
+                    this.showFCMError('Browser Error', 'Failed to start browser automation. Please ensure Chrome is installed and try again.');
+                } else if (errorMessage.includes('FCM registration failed')) {
+                    this.showFCMError('Registration Failed', errorMessage);
                 } else {
-                    this.showError(message.data.error);
+                    // For any other error, check if it might be FCM-related and hide progress
+                    if (this.isFCMRelatedError(errorMessage)) {
+                        this.hideRegistrationProgress();
+                    }
+                    this.showError(errorMessage);
                 }
                 break;
                 
@@ -287,6 +310,9 @@ class RustPlusProvider {
             return;
         }
 
+        // Clear any existing error messages before starting new registration
+        this.clearFCMErrors();
+        
         this.showLoading('Updating FCM tokens...');
         
         this.sendMessage({
@@ -652,8 +678,47 @@ class RustPlusProvider {
         console.log('Loading:', message);
     }
 
+    hideLoading() {
+        // Hide any loading states
+        console.log('Loading completed');
+    }
+
     showError(message) {
         console.error('Error: ' + message);
+    }
+
+    showFCMError(title, message) {
+        // Hide any existing loading states
+        this.hideLoading();
+        
+        // Show error in progress bar first, then hide it after 3 seconds
+        this.showRegistrationError(title, message);
+        
+        // Create a user-friendly error notification
+        const errorHtml = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <h6 class="alert-heading">
+                    <i class="bi bi-exclamation-triangle-fill"></i> ${title}
+                </h6>
+                <p class="mb-0">${message}</p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // Insert the error message at the top of the FCM token section (after progress bar hides)
+        setTimeout(() => {
+            const tokenSection = document.getElementById('fcmTokenSection');
+            if (tokenSection) {
+                // Remove any existing error alerts
+                const existingAlerts = tokenSection.querySelectorAll('.alert-danger');
+                existingAlerts.forEach(alert => alert.remove());
+                
+                // Insert new error alert
+                tokenSection.insertAdjacentHTML('afterbegin', errorHtml);
+            }
+        }, 3500); // Show alert after progress bar hides
+        
+        console.error(`FCM Error [${title}]: ${message}`);
     }
 
     showServerNotConnectedNotification() {
@@ -663,6 +728,31 @@ class RustPlusProvider {
         
         // Optionally show a non-intrusive notification
         // You could implement a toast notification here if desired
+    }
+
+    clearFCMErrors() {
+        // Clear any existing error alerts in the FCM token section
+        const tokenSection = document.getElementById('fcmTokenSection');
+        if (tokenSection) {
+            const existingAlerts = tokenSection.querySelectorAll('.alert-danger');
+            existingAlerts.forEach(alert => alert.remove());
+        }
+        
+        // Also hide any progress bars when clearing errors
+        this.hideRegistrationProgress();
+    }
+
+    isFCMRelatedError(errorMessage) {
+        // Check if the error is related to FCM registration process
+        const fcmKeywords = [
+            'FCM', 'registration', 'Steam', 'login', '2FA', 'authenticator',
+            'Chrome', 'browser', 'selenium', 'automation', 'token',
+            'username', 'password', 'credentials', 'session'
+        ];
+        
+        return fcmKeywords.some(keyword => 
+            errorMessage.toLowerCase().includes(keyword.toLowerCase())
+        );
     }
 
     refreshAllConnections() {
@@ -917,6 +1007,37 @@ class RustPlusProvider {
         form.insertAdjacentHTML('afterend', progressHtml);
     }
     
+    showRegistrationError(errorTitle, errorMessage) {
+        const progressContainer = document.getElementById('registrationProgress');
+        if (progressContainer) {
+            // Update the progress bar to show error state
+            const progressBar = document.getElementById('progressBar');
+            const progressPercentage = document.getElementById('progressPercentage');
+            const progressText = document.getElementById('progressText');
+            
+            if (progressBar) {
+                progressBar.className = 'progress-bar bg-danger';
+                progressBar.style.width = '100%';
+                progressBar.setAttribute('aria-valuenow', '100');
+            }
+            
+            if (progressPercentage) {
+                progressPercentage.className = 'badge bg-danger';
+                progressPercentage.textContent = 'Error';
+            }
+            
+            if (progressText) {
+                progressText.className = 'text-danger small';
+                progressText.innerHTML = `<strong>${errorTitle}:</strong> ${errorMessage}`;
+            }
+            
+            // Hide the progress bar after 3 seconds
+            setTimeout(() => {
+                this.hideRegistrationProgress();
+            }, 3000);
+        }
+    }
+
     hideRegistrationProgress() {
         const progressContainer = document.getElementById('registrationProgress');
         if (progressContainer) {

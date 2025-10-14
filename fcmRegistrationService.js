@@ -133,10 +133,13 @@ class FcmRegistrationService {
     try {
       this.sendProgress(3, 'Initializing browser...', 50);
       
+      // Import required modules
+      const { exec } = require('child_process');
+      const os = require('os');
+      const path = require('path');
+      
       // Kill any existing Chrome processes to prevent conflicts
       try {
-        const { exec } = require('child_process');
-        const os = require('os');
         const isWindows = os.platform() === 'win32';
         
         if (isWindows) {
@@ -162,7 +165,6 @@ class FcmRegistrationService {
       
       // Initialize Chrome driver
       const chrome = require('selenium-webdriver/chrome');
-      const { ServiceBuilder } = require('selenium-webdriver/chrome');
       const options = new chrome.Options();
       options.addArguments('--headless=new');
       options.addArguments('--no-sandbox');
@@ -204,7 +206,6 @@ class FcmRegistrationService {
       }
       
       // Use unique user data directory to avoid conflicts
-      const path = require('path');
       this.userDataDir = path.join(os.homedir(), `.chrome-profile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
       options.addArguments(`--user-data-dir=${this.userDataDir}`);
       
@@ -229,8 +230,14 @@ class FcmRegistrationService {
       this.driver = new Builder()
         .forBrowser('chrome')
         .setChromeOptions(options)
-        .setChromeService(new ServiceBuilder().setTimeout(30000)) // 30 second timeout
         .build();
+      
+      // Set timeouts for better reliability
+      await this.driver.manage().setTimeouts({
+        implicit: 10000,    // 10 seconds for element finding
+        pageLoad: 30000,   // 30 seconds for page loading
+        script: 30000      // 30 seconds for script execution
+      });
       
       // Set window size as shown in the Selenium test
       await this.driver.manage().window().setRect({ width: 1686, height: 880 });
