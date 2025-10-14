@@ -9,6 +9,7 @@ class FcmRegistrationService {
   constructor() {
     this.driver = null;
     this.progressCallback = null;
+    this.userDataDir = null;
   }
   
   // Set progress callback for real-time updates
@@ -128,6 +129,10 @@ class FcmRegistrationService {
       options.addArguments('--disable-popup-blocking');
       options.addArguments('--incognito');
       options.addArguments('--disable-extensions');
+      
+      // Use unique user data directory to avoid conflicts
+      this.userDataDir = `/tmp/chrome-user-data-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      options.addArguments(`--user-data-dir=${this.userDataDir}`);
       
       this.driver = new Builder()
         .forBrowser('chrome')
@@ -482,6 +487,19 @@ class FcmRegistrationService {
         await this.driver.quit();
       } catch (error) {
         console.error('Error closing driver:', error);
+      }
+      
+      // Clean up user data directory
+      if (this.userDataDir) {
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          if (fs.existsSync(this.userDataDir)) {
+            fs.rmSync(this.userDataDir, { recursive: true, force: true });
+          }
+        } catch (error) {
+          console.error('Error cleaning up user data directory:', error);
+        }
       }
       this.driver = null;
     }
