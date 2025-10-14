@@ -130,329 +130,29 @@ class FcmRegistrationService {
   
   // Gets Rust+ auth token using Selenium automation
   async getRustplusAuthToken(username, password, twoFactor) {
-    // Import required modules at the very top
-    const { exec } = require('child_process');
-    const os = require('os');
-    const path = require('path');
     
     try {
       this.sendProgress(3, 'Initializing browser...', 50);
       
-      // Kill any existing Chrome processes to prevent conflicts
-      try {
-        const isWindows = os.platform() === 'win32';
-        
-        if (isWindows) {
-          // Windows command to kill Chrome processes
-          exec('taskkill /f /im chrome.exe 2>nul || echo "No Chrome processes found"', (error) => {
-            if (error && !error.message.includes('No matching processes')) {
-              console.log('Warning: Could not kill existing Chrome processes:', error.message);
-            }
-          });
-        } else {
-          // Unix/Linux command to kill Chrome processes more aggressively
-          const killCommands = [
-            'pkill -f chrome-browser || true',
-            'pkill -f chromium || true',
-            'pkill -f chrome || true',
-            'killall chrome || true',
-            'killall chromium || true',
-            'killall chrome-browser || true'
-          ];
-          
-          // Execute all kill commands with proper error handling
-          for (const cmd of killCommands) {
-            try {
-              await new Promise((resolve, reject) => {
-                exec(cmd, (error, stdout, stderr) => {
-                  if (error && !error.message.includes('No matching processes') && !error.message.includes('No such process')) {
-                    console.log(`Warning: Could not kill Chrome processes with '${cmd}':`, error.message);
-                  }
-                  resolve();
-                });
-              });
-            } catch (cmdError) {
-              console.log(`Warning: Command '${cmd}' failed:`, cmdError.message);
-            }
-          }
-        }
-        // Wait a moment for processes to be killed
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (error) {
-        console.log('Warning: Could not clean up existing Chrome processes:', error.message);
-      }
       
-      // Initialize Chrome driver
+      // Initialize Chrome driver with minimal required options
       const chrome = require('selenium-webdriver/chrome');
       const options = new chrome.Options();
+      
+      // Essential options for headless Chrome in containers
       options.addArguments('--headless=new');
       options.addArguments('--no-sandbox');
       options.addArguments('--disable-dev-shm-usage');
       options.addArguments('--disable-gpu');
       options.addArguments('--disable-web-security');
-      options.addArguments('--disable-popup-blocking');
-      options.addArguments('--incognito');
       options.addArguments('--disable-extensions');
-      options.addArguments('--disable-background-timer-throttling');
-      options.addArguments('--disable-backgrounding-occluded-windows');
-      options.addArguments('--disable-renderer-backgrounding');
-      options.addArguments('--disable-features=TranslateUI');
-      options.addArguments('--disable-ipc-flooding-protection');
-      
-      // Platform-specific options for better stability
-      if (os.platform() === 'win32') {
-        // Windows-specific options
-        options.addArguments('--disable-features=VizDisplayCompositor');
-        options.addArguments('--disable-software-rasterizer');
-        options.addArguments('--disable-background-mode');
-        options.addArguments('--disable-background-timer-throttling');
-        options.addArguments('--disable-renderer-backgrounding');
-        options.addArguments('--disable-backgrounding-occluded-windows');
-        options.addArguments('--disable-client-side-phishing-detection');
-        options.addArguments('--disable-component-update');
-        options.addArguments('--disable-domain-reliability');
-        options.addArguments('--disable-features=TranslateUI,BlinkGenPropertyTrees');
-        options.addArguments('--disable-hang-monitor');
-        options.addArguments('--disable-prompt-on-repost');
-        options.addArguments('--disable-sync');
-        options.addArguments('--disable-web-resources');
-        options.addArguments('--no-default-browser-check');
-        options.addArguments('--no-first-run');
-        options.addArguments('--no-pings');
-        options.addArguments('--no-zygote');
-        options.addArguments('--disable-gpu-sandbox');
-        options.addArguments('--disable-software-rasterizer');
-        options.addArguments('--disable-gpu-process-crash-limit');
-      } else {
-        // Linux-specific options to prevent devtools port file issues
-        options.addArguments('--disable-dev-shm-usage');
-        options.addArguments('--disable-gpu-sandbox');
-        options.addArguments('--disable-software-rasterizer');
-        options.addArguments('--disable-background-timer-throttling');
-        options.addArguments('--disable-backgrounding-occluded-windows');
-        options.addArguments('--disable-renderer-backgrounding');
-        options.addArguments('--disable-features=TranslateUI');
-        options.addArguments('--disable-ipc-flooding-protection');
-        options.addArguments('--disable-client-side-phishing-detection');
-        options.addArguments('--disable-component-update');
-        options.addArguments('--disable-domain-reliability');
-        options.addArguments('--disable-hang-monitor');
-        options.addArguments('--disable-prompt-on-repost');
-        options.addArguments('--disable-sync');
-        options.addArguments('--disable-web-resources');
-        options.addArguments('--no-default-browser-check');
-        options.addArguments('--no-first-run');
-        options.addArguments('--no-pings');
-        options.addArguments('--disable-gpu-process-crash-limit');
-        options.addArguments('--disable-background-networking');
-        options.addArguments('--disable-default-apps');
-        options.addArguments('--disable-logging');
-        options.addArguments('--disable-permissions-api');
-        options.addArguments('--disable-plugins');
-        options.addArguments('--disable-preconnect');
-        options.addArguments('--disable-print-preview');
-        options.addArguments('--disable-prompt-on-repost');
-        options.addArguments('--disable-save-password-bubble');
-        options.addArguments('--disable-single-click-autofill');
-        options.addArguments('--disable-speech-api');
-        options.addArguments('--disable-web-resources');
-        options.addArguments('--no-first-run');
-        options.addArguments('--no-default-browser-check');
-        options.addArguments('--no-pings');
-        
-        // Container-specific options for LXD/Docker environments
-        options.addArguments('--disable-dev-tools');
-        options.addArguments('--disable-extensions');
-        options.addArguments('--disable-plugins-discovery');
-        options.addArguments('--disable-background-mode');
-        options.addArguments('--disable-features=TranslateUI,BlinkGenPropertyTrees');
-        
-        // Additional options to prevent user data directory conflicts
-        options.addArguments('--disable-background-timer-throttling');
-        options.addArguments('--disable-backgrounding-occluded-windows');
-        options.addArguments('--disable-renderer-backgrounding');
-        options.addArguments('--disable-features=VizDisplayCompositor');
-        options.addArguments('--disable-software-rasterizer');
-        options.addArguments('--disable-gpu-sandbox');
-        options.addArguments('--disable-gpu-process-crash-limit');
-        options.addArguments('--disable-background-networking');
-        options.addArguments('--disable-default-apps');
-        options.addArguments('--disable-logging');
-        options.addArguments('--disable-permissions-api');
-        options.addArguments('--disable-plugins');
-        options.addArguments('--disable-preconnect');
-        options.addArguments('--disable-print-preview');
-        options.addArguments('--disable-prompt-on-repost');
-        options.addArguments('--disable-save-password-bubble');
-        options.addArguments('--disable-single-click-autofill');
-        options.addArguments('--disable-speech-api');
-        options.addArguments('--disable-web-resources');
-        options.addArguments('--no-first-run');
-        options.addArguments('--no-default-browser-check');
-        options.addArguments('--no-pings');
-        options.addArguments('--disable-sync');
-        options.addArguments('--disable-component-update');
-        options.addArguments('--disable-domain-reliability');
-        options.addArguments('--disable-hang-monitor');
-        options.addArguments('--disable-client-side-phishing-detection');
-        
-        // Prevent multiple Chrome instances from conflicting
-        options.addArguments('--single-process');
-        options.addArguments('--no-zygote');
-        options.addArguments('--disable-ipc-flooding-protection');
-      }
-      
-      // Use unique user data directory to avoid conflicts
-      // For containers, try /tmp if home directory is not accessible
-      let baseDir;
-      try {
-        const homedir = os.homedir();
-        // Test if we can write to home directory
-        const fs = require('fs');
-        fs.accessSync(homedir, fs.constants.W_OK);
-        baseDir = homedir;
-      } catch (error) {
-        console.log('Home directory not accessible, using /tmp for Chrome profile');
-        baseDir = '/tmp';
-      }
-      
-      // Create a more unique user data directory with process ID and random string
-      const processId = process.pid;
-      const randomString = Math.random().toString(36).substr(2, 9);
-      const timestamp = Date.now();
-      this.userDataDir = path.join(baseDir, `.chrome-profile-${processId}-${timestamp}-${randomString}`);
-      
-      // Ensure the directory doesn't exist before creating it
-      const fs = require('fs');
-      if (fs.existsSync(this.userDataDir)) {
-        fs.rmSync(this.userDataDir, { recursive: true, force: true });
-      }
-      
-      // Create the directory with proper permissions
-      fs.mkdirSync(this.userDataDir, { recursive: true, mode: 0o755 });
-      
-      // Clean up any existing user data directory with similar pattern
-      try {
-        const fs = require('fs');
-        const homedir = os.homedir();
-        
-        // Check if we can access the home directory (container permission issue)
-        try {
-          const files = fs.readdirSync(homedir);
-          const chromeProfiles = files.filter(file => file.startsWith('.chrome-profile-'));
-          
-          // Remove old Chrome profile directories
-          chromeProfiles.forEach(profile => {
-            const profilePath = path.join(homedir, profile);
-            try {
-              if (fs.existsSync(profilePath)) {
-                fs.rmSync(profilePath, { recursive: true, force: true });
-                console.log(`Cleaned up old Chrome profile: ${profile}`);
-              }
-            } catch (cleanupError) {
-              console.log(`Warning: Could not clean up old profile ${profile}:`, cleanupError.message);
-            }
-          });
-        } catch (accessError) {
-          console.log('Warning: Could not access home directory for cleanup (container permission issue):', accessError.message);
-          // Continue without cleanup - this is common in containers
-        }
-        
-        // Also clean up /tmp directory for Chrome profiles
-        try {
-          const tmpFiles = fs.readdirSync('/tmp');
-          const tmpChromeProfiles = tmpFiles.filter(file => file.startsWith('.chrome-profile-'));
-          
-          // Remove old Chrome profile directories from /tmp
-          tmpChromeProfiles.forEach(profile => {
-            const profilePath = path.join('/tmp', profile);
-            try {
-              if (fs.existsSync(profilePath)) {
-                fs.rmSync(profilePath, { recursive: true, force: true });
-                console.log(`Cleaned up old Chrome profile from /tmp: ${profile}`);
-              }
-            } catch (cleanupError) {
-              console.log(`Warning: Could not clean up old profile from /tmp ${profile}:`, cleanupError.message);
-            }
-          });
-        } catch (tmpAccessError) {
-          console.log('Warning: Could not access /tmp for cleanup:', tmpAccessError.message);
-        }
-      } catch (cleanupError) {
-        console.log('Warning: Could not clean up old Chrome profiles:', cleanupError.message);
-      }
-      
-      options.addArguments(`--user-data-dir=${this.userDataDir}`);
-      
-      // Additional options to prevent conflicts (Windows-compatible)
-      options.addArguments('--disable-background-networking');
-      options.addArguments('--disable-default-apps');
-      options.addArguments('--disable-sync');
-      options.addArguments('--disable-logging');
-      options.addArguments('--disable-permissions-api');
-      options.addArguments('--disable-plugins');
-      options.addArguments('--disable-preconnect');
-      options.addArguments('--disable-print-preview');
-      options.addArguments('--disable-prompt-on-repost');
-      options.addArguments('--disable-save-password-bubble');
-      options.addArguments('--disable-single-click-autofill');
-      options.addArguments('--disable-speech-api');
-      options.addArguments('--disable-web-resources');
       options.addArguments('--no-first-run');
-      options.addArguments('--no-default-browser-check');
-      options.addArguments('--no-pings');
+      options.addArguments('--disable-default-apps');
       
-      // Try to create the driver with retry logic for SessionNotCreatedError
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      while (retryCount < maxRetries) {
-        try {
-          this.driver = new Builder()
-            .forBrowser('chrome')
-            .setChromeOptions(options)
-            .build();
-          break; // Success, exit the retry loop
-        } catch (error) {
-          retryCount++;
-          if (error.message.includes('SessionNotCreatedError') && retryCount < maxRetries) {
-            console.log(`Chrome session creation failed (attempt ${retryCount}/${maxRetries}), retrying...`);
-            
-            // Clean up any partial user data directory
-            if (this.userDataDir && fs.existsSync(this.userDataDir)) {
-              try {
-                fs.rmSync(this.userDataDir, { recursive: true, force: true });
-              } catch (cleanupError) {
-                console.log('Warning: Could not clean up partial user data directory:', cleanupError.message);
-              }
-            }
-            
-            // Create a new unique user data directory
-            const newProcessId = process.pid;
-            const newRandomString = Math.random().toString(36).substr(2, 9);
-            const newTimestamp = Date.now();
-            this.userDataDir = path.join(baseDir, `.chrome-profile-${newProcessId}-${newTimestamp}-${newRandomString}`);
-            
-            // Ensure the new directory doesn't exist and create it
-            if (fs.existsSync(this.userDataDir)) {
-              fs.rmSync(this.userDataDir, { recursive: true, force: true });
-            }
-            fs.mkdirSync(this.userDataDir, { recursive: true, mode: 0o755 });
-            
-            // Update the user data directory argument
-            options.addArguments(`--user-data-dir=${this.userDataDir}`);
-            
-            // Wait a bit before retrying
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          } else {
-            throw error; // Re-throw if not a SessionNotCreatedError or max retries reached
-          }
-        }
-      }
-      
-      if (!this.driver) {
-        throw new Error('Failed to create Chrome driver after multiple attempts');
-      }
+      this.driver = new Builder()
+        .forBrowser('chrome')
+        .setChromeOptions(options)
+        .build();
       
       // Set timeouts for better reliability
       await this.driver.manage().setTimeouts({
@@ -809,19 +509,6 @@ class FcmRegistrationService {
         await this.driver.quit();
       } catch (error) {
         console.error('Error closing driver:', error);
-      }
-      
-      // Clean up user data directory
-      if (this.userDataDir) {
-        try {
-          const fs = require('fs');
-          if (fs.existsSync(this.userDataDir)) {
-            fs.rmSync(this.userDataDir, { recursive: true, force: true });
-            console.log(`Cleaned up Chrome profile directory: ${this.userDataDir}`);
-          }
-        } catch (error) {
-          console.error('Error cleaning up user data directory:', error);
-        }
       }
       this.driver = null;
     }
