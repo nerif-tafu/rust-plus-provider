@@ -120,7 +120,7 @@ class FcmRegistrationService {
       // Initialize Chrome driver
       const chrome = require('selenium-webdriver/chrome');
       const options = new chrome.Options();
-      // options.addArguments('--headless=new');
+      options.addArguments('--headless=new');
       options.addArguments('--no-sandbox');
       options.addArguments('--disable-dev-shm-usage');
       options.addArguments('--disable-gpu');

@@ -19,11 +19,31 @@ jobs:
         node-version: '22'
         cache: 'npm'
         
+    - name: Install Chrome
+      run: |
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        sudo apt update
+        sudo apt install -y google-chrome-stable
+        
+    - name: Install ChromeDriver
+      run: |
+        # Get latest ChromeDriver version
+        CHROMEDRIVER_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_STABLE")
+        wget -O /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROMEDRIVER_VERSION}/linux64/chromedriver-linux64.zip"
+        sudo unzip /tmp/chromedriver.zip -d /usr/local/bin/
+        sudo chmod +x /usr/local/bin/chromedriver
+        
     - name: Install dependencies
       run: npm ci --production
       
     - name: Verify Node.js version
       run: node --version
+      
+    - name: Verify Chrome installation
+      run: |
+        google-chrome --version
+        chromedriver --version
       
     - name: Stop existing service
       run: |
