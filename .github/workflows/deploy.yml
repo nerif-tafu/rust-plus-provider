@@ -19,6 +19,11 @@ jobs:
         node-version: '22'
         cache: 'npm'
         
+    - name: Install required packages
+      run: |
+        sudo apt update
+        sudo apt install -y unzip wget curl
+        
     - name: Install Chrome
       run: |
         wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
@@ -35,7 +40,10 @@ jobs:
         sudo chmod +x /usr/local/bin/chromedriver
         
     - name: Install dependencies
-      run: npm ci --production
+      run: |
+        # Remove lock file and install fresh
+        rm -f package-lock.json
+        npm install --production
       
     - name: Verify Node.js version
       run: node --version
