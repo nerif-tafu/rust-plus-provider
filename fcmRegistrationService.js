@@ -251,30 +251,57 @@ class FcmRegistrationService {
         options.addArguments('--no-first-run');
         options.addArguments('--no-default-browser-check');
         options.addArguments('--no-pings');
+        
+        // Container-specific options for LXD/Docker environments
+        options.addArguments('--disable-dev-tools');
+        options.addArguments('--disable-extensions');
+        options.addArguments('--disable-plugins-discovery');
+        options.addArguments('--disable-background-mode');
+        options.addArguments('--disable-features=TranslateUI,BlinkGenPropertyTrees');
       }
       
       // Use unique user data directory to avoid conflicts
-      this.userDataDir = path.join(os.homedir(), `.chrome-profile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+      // For containers, try /tmp if home directory is not accessible
+      let baseDir;
+      try {
+        const homedir = os.homedir();
+        // Test if we can write to home directory
+        const fs = require('fs');
+        fs.accessSync(homedir, fs.constants.W_OK);
+        baseDir = homedir;
+      } catch (error) {
+        console.log('Home directory not accessible, using /tmp for Chrome profile');
+        baseDir = '/tmp';
+      }
+      
+      this.userDataDir = path.join(baseDir, `.chrome-profile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
       
       // Clean up any existing user data directory with similar pattern
       try {
         const fs = require('fs');
         const homedir = os.homedir();
-        const files = fs.readdirSync(homedir);
-        const chromeProfiles = files.filter(file => file.startsWith('.chrome-profile-'));
         
-        // Remove old Chrome profile directories
-        chromeProfiles.forEach(profile => {
-          const profilePath = path.join(homedir, profile);
-          try {
-            if (fs.existsSync(profilePath)) {
-              fs.rmSync(profilePath, { recursive: true, force: true });
-              console.log(`Cleaned up old Chrome profile: ${profile}`);
+        // Check if we can access the home directory (container permission issue)
+        try {
+          const files = fs.readdirSync(homedir);
+          const chromeProfiles = files.filter(file => file.startsWith('.chrome-profile-'));
+          
+          // Remove old Chrome profile directories
+          chromeProfiles.forEach(profile => {
+            const profilePath = path.join(homedir, profile);
+            try {
+              if (fs.existsSync(profilePath)) {
+                fs.rmSync(profilePath, { recursive: true, force: true });
+                console.log(`Cleaned up old Chrome profile: ${profile}`);
+              }
+            } catch (cleanupError) {
+              console.log(`Warning: Could not clean up old profile ${profile}:`, cleanupError.message);
             }
-          } catch (cleanupError) {
-            console.log(`Warning: Could not clean up old profile ${profile}:`, cleanupError.message);
-          }
-        });
+          });
+        } catch (accessError) {
+          console.log('Warning: Could not access home directory for cleanup (container permission issue):', accessError.message);
+          // Continue without cleanup - this is common in containers
+        }
       } catch (cleanupError) {
         console.log('Warning: Could not clean up old Chrome profiles:', cleanupError.message);
       }
