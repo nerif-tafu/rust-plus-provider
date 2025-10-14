@@ -1,0 +1,98 @@
+name: Deploy Rust+ Provider
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci --production
+      
+    - name: Verify Node.js version
+      run: node --version
+      
+    - name: Stop existing service
+      run: |
+        sudo systemctl stop rust-plus-provider || true
+        sudo systemctl disable rust-plus-provider || true
+        
+    - name: Get current user
+      run: |
+        echo "CURRENT_USER=$(whoami)" >> $GITHUB_ENV
+        
+    - name: Create systemd service file
+      run: |
+        sudo tee /etc/systemd/system/rust-plus-provider.service > /dev/null << EOF
+        [Unit]
+        Description=Rust+ Provider Service
+        After=network.target
+        
+        [Service]
+        Type=simple
+        User=$CURRENT_USER
+        Group=$CURRENT_USER
+        WorkingDirectory=/opt/rust-plus-provider
+        ExecStart=/usr/bin/node server.js
+        Restart=always
+        RestartSec=10
+        Environment=NODE_ENV=production
+        Environment=PORT=9443
+        
+        # Security settings
+        NoNewPrivileges=true
+        PrivateTmp=true
+        ProtectSystem=strict
+        ProtectHome=true
+        ReadWritePaths=/opt/rust-plus-provider
+        
+        [Install]
+        WantedBy=multi-user.target
+        EOF
+        
+    - name: Create application directory
+      run: |
+        sudo mkdir -p /opt/rust-plus-provider
+        sudo chown $CURRENT_USER:$CURRENT_USER /opt/rust-plus-provider
+        
+    - name: Copy application files
+      run: |
+        sudo cp -r . /opt/rust-plus-provider/
+        sudo chown -R $CURRENT_USER:$CURRENT_USER /opt/rust-plus-provider
+        
+    - name: Create logs directory
+      run: |
+        sudo mkdir -p /var/log/rust-plus-provider
+        sudo chown $CURRENT_USER:$CURRENT_USER /var/log/rust-plus-provider
+        
+    - name: Reload systemd
+      run: sudo systemctl daemon-reload
+      
+    - name: Enable and start service
+      run: |
+        sudo systemctl enable rust-plus-provider
+        sudo systemctl start rust-plus-provider
+        
+    - name: Check service status
+      run: |
+        sudo systemctl status rust-plus-provider --no-pager
+        sleep 5
+        curl -f http://localhost:9443 || exit 1
+        
+    - name: Show service logs
+      if: failure()
+      run: |
+        sudo journalctl -u rust-plus-provider --no-pager -n 50

@@ -9,6 +9,7 @@ class FcmPairingService {
     this.pairingCallbacks = new Map(); // clientId -> resolve function
     this.jsonManager = new JsonManager();
     this.onEntityPaired = null; // Callback for when entities are paired
+    this.onServerPaired = null; // Callback for when servers are paired
   }
   
   // Starts listening for FCM pairing notifications
@@ -166,6 +167,11 @@ class FcmPairingService {
       if (success) {
         console.log(`✅ New server auto-saved successfully: ${serverData.name} (${serverData.ip}:${serverData.port})`);
         console.log(`   Server ID: ${serverId}`);
+        
+        // Notify callback if set
+        if (this.onServerPaired) {
+          this.onServerPaired(serverId, serverData);
+        }
       } else {
         console.error('❌ Failed to auto-save new server to JSON file');
       }
@@ -252,6 +258,11 @@ class FcmPairingService {
   // Sets callback for when entities are paired
   setEntityPairedCallback(callback) {
     this.onEntityPaired = callback;
+  }
+
+  // Sets callback for when servers are paired
+  setServerPairedCallback(callback) {
+    this.onServerPaired = callback;
   }
   
   // Generates a unique server ID

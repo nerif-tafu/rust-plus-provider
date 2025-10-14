@@ -56,7 +56,7 @@ class RustPlusProvider {
 
         // Refresh servers button
         document.getElementById('refreshServers').addEventListener('click', () => {
-            this.loadServers();
+            this.refreshAllConnections();
         });
     }
 
@@ -112,6 +112,20 @@ class RustPlusProvider {
                         console.log('Received entity_paired message:', message);
                         this.addLiveEvent('Entity Paired', message.data.message);
                         // Refresh servers to show the new entity
+                        this.loadServers();
+                        break;
+
+                    case 'server_paired':
+                        console.log('Received server_paired message:', message);
+                        this.addLiveEvent('Server Paired', message.data.message);
+                        // Refresh servers to show the new server
+                        this.loadServers();
+                        break;
+
+                    case 'refresh_all_connections_success':
+                        console.log('Received refresh_all_connections_success message:', message);
+                        this.addLiveEvent('Connections Refreshed', message.data.message);
+                        // Refresh servers to show updated connection status
                         this.loadServers();
                         break;
                 
@@ -224,7 +238,15 @@ class RustPlusProvider {
                         break;
                 
             case 'error':
-                this.showError(message.data.error);
+                // Handle connection-related errors gracefully without alerts
+                if (message.data.error === 'Server not connected' || 
+                    message.data.error === 'Server not found or not connected') {
+                    console.warn('Server connection issue:', message.data.error);
+                    // Show subtle notification instead of alert
+                    this.showServerNotConnectedNotification();
+                } else {
+                    this.showError(message.data.error);
+                }
                 break;
                 
             default:
@@ -592,7 +614,9 @@ class RustPlusProvider {
             'Server Error': 'bi-exclamation-triangle',
             'Map Markers': 'bi-geo-alt',
             'Team Info': 'bi-people',
-            'Server Info': 'bi-info-circle'
+            'Server Info': 'bi-info-circle',
+            'Server Paired': 'bi-server',
+            'Connections Refreshed': 'bi-arrow-clockwise'
         };
         return icons[type] || 'bi-bell';
     }
@@ -609,7 +633,9 @@ class RustPlusProvider {
             'Server Error': '#dc3545',
             'Map Markers': '#17a2b8',
             'Team Info': '#6f42c1',
-            'Server Info': '#007bff'
+            'Server Info': '#007bff',
+            'Server Paired': '#28a745',
+            'Connections Refreshed': '#17a2b8'
         };
         return colors[type] || '#6c757d';
     }
@@ -627,7 +653,21 @@ class RustPlusProvider {
     }
 
     showError(message) {
-        alert('Error: ' + message);
+        console.error('Error: ' + message);
+    }
+
+    showServerNotConnectedNotification() {
+        // Show a subtle notification instead of an alert
+        // This could be a toast notification or a small status indicator
+        console.warn('Server connection lost - some features may be unavailable');
+        
+        // Optionally show a non-intrusive notification
+        // You could implement a toast notification here if desired
+    }
+
+    refreshAllConnections() {
+        console.log('🔄 Refreshing all server connections...');
+        this.sendMessage({ type: 'refresh_all_connections' });
     }
 
     showConnectionError() {

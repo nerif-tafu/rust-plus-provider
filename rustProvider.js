@@ -44,7 +44,7 @@ class RustProvider {
   async connect() {
     try {
       console.log(`Connecting to Rust+ server: ${this.serverInfo.name} (${this.serverInfo.ip}:${this.serverInfo.port})`);
-      console.log(`Rust+ connection details - IP: ${this.serverInfo.ip}, Port: ${this.serverInfo.port}, Player ID: ${this.serverInfo.playerId}, Token: ${this.serverInfo.playerToken}`);
+      console.log(`Rust+ connection details - IP: ${this.serverInfo.ip}, Port: ${this.serverInfo.port}, Player ID: ${this.serverInfo.playerId}, Token: [REDACTED]`);
       
       // Create RustPlus instance with server info
       this.rustplus = new RustPlus(

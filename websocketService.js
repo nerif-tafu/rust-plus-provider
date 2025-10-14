@@ -24,6 +24,11 @@ class WebSocketService {
     this.fcmPairingService.setEntityPairedCallback((serverId, entityId, entityType, entityName) => {
       this.handleNewEntityPaired(serverId, entityId, entityType, entityName);
     });
+
+    // Set up server pairing callback
+    this.fcmPairingService.setServerPairedCallback((serverId, serverData) => {
+      this.handleNewServerPaired(serverId, serverData);
+    });
     
     // Initialize connections to existing servers
     this.initializeConnections();
@@ -90,8 +95,8 @@ class WebSocketService {
     console.log(`Client ${clientId} connected${serverId ? ` to server ${serverId}` : ''}`);
     
     // Set up message handler
-    ws.on('message', (data) => {
-      this.handleMessage(clientId, data);
+    ws.on('message', async (data) => {
+      await this.handleMessage(clientId, data);
     });
     
     // Set up close handler
@@ -117,7 +122,7 @@ class WebSocketService {
   }
   
   // Handles incoming WebSocket messages
-  handleMessage(clientId, data) {
+  async handleMessage(clientId, data) {
     try {
       const message = JSON.parse(data);
       
@@ -166,6 +171,9 @@ class WebSocketService {
           break;
         case 'get_entity_info':
           this.handleGetEntityInfo(clientId, message.data);
+          break;
+        case 'refresh_all_connections':
+          await this.handleRefreshAllConnections(clientId);
           break;
         case 'send_team_message':
           this.handleSendTeamMessage(clientId, message.data);
@@ -1063,6 +1071,31 @@ class WebSocketService {
       console.error(`Error handling new entity pairing:`, error);
     }
   }
+
+  // Handles when a new server is paired via FCM
+  async handleNewServerPaired(serverId, serverData) {
+    try {
+      console.log(`🔗 New server paired: ${serverData.name} (${serverData.ip}:${serverData.port})`);
+      
+      // Automatically connect to the new server
+      await this.connectToServer(serverId, serverData);
+      
+      // Broadcast to all clients that a new server was paired
+      this.broadcastToAllClients({
+        type: 'server_paired',
+        data: {
+          serverId: serverId,
+          serverName: serverData.name,
+          serverIp: serverData.ip,
+          serverPort: serverData.port,
+          message: `Server "${serverData.name}" paired successfully`
+        }
+      });
+      
+    } catch (error) {
+      console.error(`Error handling new server pairing:`, error);
+    }
+  }
   
   // Gets detailed token expiry information
   getTokenExpiryInfo() {
@@ -1112,7 +1145,7 @@ class WebSocketService {
    async connectToServer(serverId, serverData) {
      try {
        console.log(`Connecting to Rust+ server: ${serverData.name} (${serverData.ip}:${serverData.port})`);
-       console.log(`Using credentials - Player ID: ${serverData.playerId}, Token: ${serverData.playerToken}`);
+       console.log(`Using credentials - Player ID: ${serverData.playerId}, Token: [REDACTED]`);
        
        // Create RustProvider instance
        const rustProvider = new RustProvider(serverData);
@@ -1476,6 +1509,37 @@ class WebSocketService {
     } catch (error) {
       console.error('Error handling get_entity_info:', error);
       this.sendError(clientId, 'Internal server error');
+    }
+  }
+
+  // Handles refresh_all_connections command - disconnects all servers, waits, then reconnects
+  async handleRefreshAllConnections(clientId) {
+    try {
+      console.log('🔄 Refreshing all server connections...');
+      
+      // Disconnect all servers
+      await this.disconnectFromAllServers();
+      
+      // Wait 1000ms
+      console.log('⏳ Waiting 1000ms before reconnecting...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Reconnect all servers
+      console.log('🔗 Reconnecting to all servers...');
+      await this.initializeConnections();
+      
+      // Send success response
+      this.sendToClient(clientId, {
+        type: 'refresh_all_connections_success',
+        data: {
+          message: 'All server connections refreshed successfully',
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error refreshing all connections:', error);
+      this.sendError(clientId, 'Failed to refresh connections');
     }
   }
 }
