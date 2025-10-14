@@ -150,11 +150,22 @@ class FcmRegistrationService {
             }
           });
         } else {
-          // Unix/Linux command to kill Chrome processes
-          exec('pkill -f chrome || true', (error) => {
-            if (error && !error.message.includes('No matching processes')) {
-              console.log('Warning: Could not kill existing Chrome processes:', error.message);
-            }
+          // Unix/Linux command to kill Chrome processes more aggressively
+          const killCommands = [
+            'pkill -f chrome || true',
+            'pkill -f chromium || true', 
+            'pkill -f chrome-browser || true',
+            'killall chrome || true',
+            'killall chromium || true'
+          ];
+          
+          // Execute all kill commands
+          killCommands.forEach(cmd => {
+            exec(cmd, (error) => {
+              if (error && !error.message.includes('No matching processes')) {
+                console.log(`Warning: Could not kill Chrome processes with '${cmd}':`, error.message);
+              }
+            });
           });
         }
         // Wait a moment for processes to be killed
@@ -180,8 +191,9 @@ class FcmRegistrationService {
       options.addArguments('--disable-features=TranslateUI');
       options.addArguments('--disable-ipc-flooding-protection');
       
-      // Windows-specific options for better stability
+      // Platform-specific options for better stability
       if (os.platform() === 'win32') {
+        // Windows-specific options
         options.addArguments('--disable-features=VizDisplayCompositor');
         options.addArguments('--disable-software-rasterizer');
         options.addArguments('--disable-background-mode');
@@ -203,10 +215,70 @@ class FcmRegistrationService {
         options.addArguments('--disable-gpu-sandbox');
         options.addArguments('--disable-software-rasterizer');
         options.addArguments('--disable-gpu-process-crash-limit');
+      } else {
+        // Linux-specific options to prevent devtools port file issues
+        options.addArguments('--disable-dev-shm-usage');
+        options.addArguments('--disable-gpu-sandbox');
+        options.addArguments('--disable-software-rasterizer');
+        options.addArguments('--disable-background-timer-throttling');
+        options.addArguments('--disable-backgrounding-occluded-windows');
+        options.addArguments('--disable-renderer-backgrounding');
+        options.addArguments('--disable-features=TranslateUI');
+        options.addArguments('--disable-ipc-flooding-protection');
+        options.addArguments('--disable-client-side-phishing-detection');
+        options.addArguments('--disable-component-update');
+        options.addArguments('--disable-domain-reliability');
+        options.addArguments('--disable-hang-monitor');
+        options.addArguments('--disable-prompt-on-repost');
+        options.addArguments('--disable-sync');
+        options.addArguments('--disable-web-resources');
+        options.addArguments('--no-default-browser-check');
+        options.addArguments('--no-first-run');
+        options.addArguments('--no-pings');
+        options.addArguments('--disable-gpu-process-crash-limit');
+        options.addArguments('--disable-background-networking');
+        options.addArguments('--disable-default-apps');
+        options.addArguments('--disable-logging');
+        options.addArguments('--disable-permissions-api');
+        options.addArguments('--disable-plugins');
+        options.addArguments('--disable-preconnect');
+        options.addArguments('--disable-print-preview');
+        options.addArguments('--disable-prompt-on-repost');
+        options.addArguments('--disable-save-password-bubble');
+        options.addArguments('--disable-single-click-autofill');
+        options.addArguments('--disable-speech-api');
+        options.addArguments('--disable-web-resources');
+        options.addArguments('--no-first-run');
+        options.addArguments('--no-default-browser-check');
+        options.addArguments('--no-pings');
       }
       
       // Use unique user data directory to avoid conflicts
       this.userDataDir = path.join(os.homedir(), `.chrome-profile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+      
+      // Clean up any existing user data directory with similar pattern
+      try {
+        const fs = require('fs');
+        const homedir = os.homedir();
+        const files = fs.readdirSync(homedir);
+        const chromeProfiles = files.filter(file => file.startsWith('.chrome-profile-'));
+        
+        // Remove old Chrome profile directories
+        chromeProfiles.forEach(profile => {
+          const profilePath = path.join(homedir, profile);
+          try {
+            if (fs.existsSync(profilePath)) {
+              fs.rmSync(profilePath, { recursive: true, force: true });
+              console.log(`Cleaned up old Chrome profile: ${profile}`);
+            }
+          } catch (cleanupError) {
+            console.log(`Warning: Could not clean up old profile ${profile}:`, cleanupError.message);
+          }
+        });
+      } catch (cleanupError) {
+        console.log('Warning: Could not clean up old Chrome profiles:', cleanupError.message);
+      }
+      
       options.addArguments(`--user-data-dir=${this.userDataDir}`);
       
       // Additional options to prevent conflicts (Windows-compatible)
