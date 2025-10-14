@@ -81,13 +81,6 @@ jobs:
         Environment=NODE_ENV=production
         Environment=PORT=9443
         
-        # Security settings
-        NoNewPrivileges=true
-        PrivateTmp=true
-        ProtectSystem=strict
-        ProtectHome=true
-        ReadWritePaths=/opt/rust-plus-provider
-        
         [Install]
         WantedBy=multi-user.target
         EOF
