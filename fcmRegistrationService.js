@@ -130,13 +130,13 @@ class FcmRegistrationService {
   
   // Gets Rust+ auth token using Selenium automation
   async getRustplusAuthToken(username, password, twoFactor) {
+    // Import required modules at the very top
+    const { exec } = require('child_process');
+    const os = require('os');
+    const path = require('path');
+    
     try {
       this.sendProgress(3, 'Initializing browser...', 50);
-      
-      // Import required modules
-      const { exec } = require('child_process');
-      const os = require('os');
-      const path = require('path');
       
       // Kill any existing Chrome processes to prevent conflicts
       try {
