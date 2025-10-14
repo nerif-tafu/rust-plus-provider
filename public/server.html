@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rust+ Provider - Server Details</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="shared.css" rel="stylesheet">
+    <style>
+        .live-event {
+            border-left: 4px solid #007bff;
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .live-event.entity-change { border-left-color: #28a745; }
+        .live-event.entity-paired { border-left-color: #17a2b8; }
+        .live-event.entity-renamed { border-left-color: #6c757d; }
+        .live-event.team-chat { border-left-color: #6f42c1; }
+        .live-event.server-connected { border-left-color: #28a745; }
+        .live-event.server-disconnected { border-left-color: #dc3545; }
+        .live-event.server-connecting { border-left-color: #ffc107; }
+        .live-event.server-error { border-left-color: #dc3545; }
+        .live-event.map-markers { border-left-color: #17a2b8; }
+        .live-event.team-info { border-left-color: #6f42c1; }
+        .live-event.server-info { border-left-color: #007bff; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 bg-light p-3">
+                <h4><i class="bi bi-gear"></i> Rust+ Provider</h4>
+                <hr>
+                <ul class="nav nav-pills flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="bi bi-house"></i> Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/pairing">
+                            <i class="bi bi-link-45deg"></i> Server Pairing
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/servers">
+                            <i class="bi bi-database"></i> Server Data
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/api-docs">
+                            <i class="bi bi-book"></i> API Documentation
+                        </a>
+                    </li>
+                </ul>
+                
+            </div>
+            
+            <!-- Main Content -->
+            <div class="col-md-9 p-4">
+                <!-- Server Header -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h2 class="mb-0">
+                            <i class="bi bi-server"></i> <span id="serverName">Loading...</span>
+                            <span id="serverStatus" class="badge bg-secondary ms-2">
+                                <i class="bi bi-question-circle"></i> Unknown
+                            </span>
+                        </h2>
+                        <div class="btn-group">
+                            <button class="btn btn-outline-primary" onclick="serverPage.refreshData()">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="serverPage.toggleAutoRefresh()">
+                                <i class="bi bi-play-circle"></i> Auto Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="bi bi-info-circle"></i> Server Information</h6>
+                                <p class="text-muted mb-1"><strong>IP:</strong> <span id="serverIp">Loading...</span></p>
+                                <p class="text-muted mb-1"><strong>Port:</strong> <span id="serverPort">Loading...</span></p>
+                                <p class="text-muted mb-1"><strong>Player ID:</strong> <span id="serverPlayerId">Loading...</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="bi bi-gear"></i> Smart Devices</h6>
+                                <p class="text-muted mb-1"><strong>Switches:</strong> <span id="switchCount">0</span></p>
+                                <p class="text-muted mb-1"><strong>Alarms:</strong> <span id="alarmCount">0</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Server Data -->
+                    <div class="col-md-8">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5><i class="bi bi-database"></i> Cached Data</h5>
+                            </div>
+                            <div class="card-body">
+                                <ul class="nav nav-tabs" id="dataTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="server-info-tab" data-bs-toggle="tab" data-bs-target="#server-info" type="button" role="tab">
+                                            <i class="bi bi-info-circle"></i> Server Info
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="smart-devices-tab" data-bs-toggle="tab" data-bs-target="#smart-devices" type="button" role="tab">
+                                            <i class="bi bi-gear"></i> Smart Devices
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="map-data-tab" data-bs-toggle="tab" data-bs-target="#map-data" type="button" role="tab">
+                                            <i class="bi bi-map"></i> Map & Markers
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="api-docs-tab" data-bs-toggle="tab" data-bs-target="#api-docs" type="button" role="tab">
+                                            <i class="bi bi-book"></i> API Docs
+                                        </button>
+                                    </li>
+                                </ul>
+                                <div class="tab-content mt-3" id="dataTabContent">
+                                    <div class="tab-pane fade show active" id="server-info" role="tabpanel">
+                                        <div class="bg-light p-3 rounded">
+                                            <pre id="serverInfoData" class="mb-0" style="font-size: 0.8rem; max-height: 400px; overflow-y: auto;">Loading...</pre>
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="smart-devices" role="tabpanel">
+                                        <div class="bg-light p-3 rounded">
+                                            <pre id="smartDevicesData" class="mb-0" style="font-size: 0.8rem; max-height: 400px; overflow-y: auto;">Loading...</pre>
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="map-data" role="tabpanel">
+                                        <div class="bg-light p-3 rounded">
+                                            <pre id="mapDataData" class="mb-0" style="font-size: 0.8rem; max-height: 400px; overflow-y: auto;">Loading...</pre>
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="api-docs" role="tabpanel">
+                                        <div class="bg-light p-3 rounded">
+                                            <div id="apiDocsData" style="font-size: 0.8rem;">
+                                                <h6 class="text-primary">WebSocket Commands:</h6>
+                                                <div class="mb-3">
+                                                    <strong>Get Server Info</strong>
+                                                    <pre class="bg-dark text-light p-2 rounded mt-1" style="font-size: 0.7rem;">
+// Get live server information
+websocket.send(JSON.stringify({
+    "type": "get_server_info",
+    "serverId": "your-server-id"
+}));</pre>
+                                                    <small class="text-muted mb-1">Returns: name, ip, port, population, players, etc.</small>
+                                                    <strong>Response:</strong>
+                                                    <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "server_info",
+  "data": {
+    "name": "HopHop Build server | Main",
+    "ip": "186.105.34.106",
+    "port": "28082",
+    "population": 0,
+    "maxPopulation": 100,
+    "time": "12:34:56",
+    "sunrise": "06:00:00",
+    "sunset": "18:00:00"
+  }
+}</pre>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <strong>Get Time</strong>
+                                                    <pre class="bg-dark text-light p-2 rounded mt-1" style="font-size: 0.7rem;">
+// Get current in-game time
+websocket.send(JSON.stringify({
+    "type": "get_time",
+    "serverId": "your-server-id"
+}));</pre>
+                                                    <small class="text-muted mb-1">Returns: current time, sunrise/sunset times</small>
+                                                    <strong>Response:</strong>
+                                                    <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "time_info",
+  "data": {
+    "time": "12:34:56",
+    "sunrise": "06:00:00",
+    "sunset": "18:00:00",
+    "timestamp": 1640995200
+  }
+}</pre>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <strong>Get Map Data</strong>
+                                                    <pre class="bg-dark text-light p-2 rounded mt-1" style="font-size: 0.7rem;">
+// Get live map image and markers
+websocket.send(JSON.stringify({
+    "type": "get_map_data",
+    "serverId": "your-server-id"
+}));</pre>
+                                                    <small class="text-muted mb-1">Returns: map image (base64), markers array with positions, types, names</small>
+                                                    <strong>Response:</strong>
+                                                    <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "map_data",
+  "data": {
+    "map": "base64-encoded-image-data",
+    "size": 1024,
+    "timestamp": 1640995200,
+    "oceanMargin": 500,
+    "monuments": [
+      {
+        "token": "harbor_display_name",
+        "x": 3690.75,
+        "y": 3907.10
+      },
+      {
+        "token": "airfield_display_name", 
+        "x": 2843.70,
+        "y": 3174.95
+      },
+      {
+        "token": "outpost",
+        "x": 2929.23,
+        "y": 622.80
+      }
+    ],
+    "markers": {
+      "markers": [
+        {
+          "id": 563890193,
+          "type": "VendingMachine",
+          "x": 2958.51,
+          "y": 640.64,
+          "name": "Vendor Farming",
+          "sellOrders": [
+            {
+              "itemId": -1488398114,
+              "quantity": 1,
+              "currencyId": -932201673,
+              "costPerItem": 30,
+              "amountInStock": 10
+            }
+          ]
+        }
+      ]
+    },
+    "background": "#0B3B4A"
+  }
+}</pre>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <strong>Get Team Info</strong>
+                                                    <pre class="bg-dark text-light p-2 rounded mt-1" style="font-size: 0.7rem;">
+// Get team information
+websocket.send(JSON.stringify({
+    "type": "get_team_info",
+    "serverId": "your-server-id"
+}));</pre>
+                                                    <small class="text-muted mb-1">Returns: team members, leader, notes</small>
+                        <strong>Response:</strong>
+                        <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "team_info",
+  "data": {
+    "serverId": "df9525f2-4489-b8d9-ff19-b85296ddb39f",
+    "teamInfo": {
+      "seq": 2,
+      "teamInfo": {
+        "leaderSteamId": "76561198056409776",
+        "members": [
+          {
+            "steamId": "76561198056409776",
+            "name": "nerif.tafu",
+            "x": 548.399658203125,
+            "y": 3884.44482421875,
+            "isOnline": true,
+            "spawnTime": 1760374002,
+            "isAlive": true,
+            "deathTime": 1760108753
+          }
+        ],
+        "mapNotes": [
+          {
+            "x": 907.8348388671875,
+            "y": 3588.74658203125
+          }
+        ]
+      }
+    }
+  }
+}</pre>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <strong>Get Entity Info</strong>
+                                                    <pre class="bg-dark text-light p-2 rounded mt-1" style="font-size: 0.7rem;">
+// Get entity status
+websocket.send(JSON.stringify({
+    "type": "get_entity_info",
+    "serverId": "your-server-id",
+    "entityId": "entity-id"
+}));</pre>
+                                                    <small class="text-muted mb-1">Returns: entity status, availability</small>
+                                                    <strong>Response:</strong>
+                                                    <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "entity_info",
+  "data": {
+    "entityId": "entity-id",
+    "isActive": true,
+    "available": true,
+    "lastChecked": "2025-01-13T12:34:56.789Z"
+  }
+}</pre>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <strong>Toggle Entity</strong>
+                                                    <pre class="bg-dark text-light p-2 rounded mt-1" style="font-size: 0.7rem;">
+// Toggle entity on/off
+websocket.send(JSON.stringify({
+    "type": "toggle_switch",
+    "serverId": "your-server-id",
+    "entityId": "entity-id"
+}));</pre>
+                                                    <small class="text-muted mb-1">Toggles entity state (true/false)</small>
+                                                    <strong>Response:</strong>
+                                                    <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "switch_toggled",
+  "data": {
+    "entityId": "entity-id",
+    "newState": true,
+    "message": "Switch turned on successfully"
+  }
+}</pre>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <strong>Send Team Message</strong>
+                                                    <pre class="bg-dark text-light p-2 rounded mt-1" style="font-size: 0.7rem;">
+// Send team chat message
+websocket.send(JSON.stringify({
+    "type": "send_team_message",
+    "serverId": "your-server-id",
+    "message": "Hello team!"
+}));</pre>
+                                                    <small class="text-muted mb-1">Sends message to team chat</small>
+                        <strong>Response:</strong>
+                        <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "team_message_sent",
+  "data": {
+    "serverId": "df9525f2-4489-b8d9-ff19-b85296ddb39f",
+    "message": "Test message from Rust+ Provider at 2025-10-14T00:24:22.499Z",
+    "success": true
+  }
+}</pre>
+                                                </div>
+                                                
+                                                <hr class="my-3">
+                                                <h6 class="text-primary">Listening to Broadcasts:</h6>
+                                                <div class="mb-3">
+                        <strong>Team Chat Messages:</strong>
+                        <pre class="bg-dark text-light p-2 rounded mt-1" style="font-size: 0.7rem;">
+// Listen for team chat messages
+websocket.onmessage = function(event) {
+    const message = JSON.parse(event.data);
+    
+    if (message.type === 'team_message') {
+        console.log('Chat from:', message.data.playerName);
+        console.log('Message:', message.data.message);
+        console.log('Time:', new Date(message.data.timestamp * 1000));
+        console.log('Server:', message.data.serverName);
+    }
+};</pre>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <strong>Smart Entity State Changes:</strong>
+                                                    <pre class="bg-dark text-light p-2 rounded mt-1" style="font-size: 0.7rem;">
+// Listen for entity state changes
+websocket.onmessage = function(event) {
+    const message = JSON.parse(event.data);
+    
+    if (message.type === 'entity_changed') {
+        console.log('Entity ID:', message.data.entityId);
+        console.log('Entity Name:', message.data.entityName);
+        console.log('Is Active:', message.data.isActive);
+        console.log('Server:', message.data.serverName);
+    }
+};</pre>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <strong>Server Connection Events:</strong>
+                                                    <pre class="bg-dark text-light p-2 rounded mt-1" style="font-size: 0.7rem;">
+// Listen for server connection events
+websocket.onmessage = function(event) {
+    const message = JSON.parse(event.data);
+    
+    if (message.type === 'server_connected') {
+        console.log('Server connected:', message.data.serverName);
+    } else if (message.type === 'server_disconnected') {
+        console.log('Server disconnected:', message.data.serverName);
+    }
+};</pre>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <strong>Entity Paired Events:</strong>
+                                                    <pre class="bg-dark text-light p-2 rounded mt-1" style="font-size: 0.7rem;">
+// Listen for new entity pairings
+websocket.onmessage = function(event) {
+    const message = JSON.parse(event.data);
+    
+    if (message.type === 'entity_paired') {
+        console.log('New entity paired:', message.data.message);
+    }
+};</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Events -->
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5><i class="bi bi-bell"></i> Live Events</h5>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="serverPage.clearEvents()">
+                                    <i class="bi bi-trash"></i> Clear
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="liveEvents" style="max-height: 500px; overflow-y: auto;">
+                                    <p class="text-muted">Waiting for events...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="navigation.js"></script>
+    <script src="server.js"></script>
+</body>
+</html>

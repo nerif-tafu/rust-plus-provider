@@ -1,0 +1,112 @@
+/* shared.css - Consistent styling across all pages */
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* Main content panel styling */
+.col-md-9 {
+    background-color: white;
+    min-height: 100vh;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.status-connected { background-color: #28a745; }
+.status-disconnected { background-color: #dc3545; }
+.status-connecting { background-color: #ffc107; }
+
+/* Status indicators for pairing page */
+.status-online { background-color: #28a745; }
+.status-offline { background-color: #dc3545; }
+.status-unknown { background-color: #6c757d; }
+
+.server-card {
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.server-card:hover {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.json-output {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.api-doc {
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.api-endpoint {
+    background-color: #f5f5f5;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.entity-card {
+    border-left: 4px solid #007bff;
+    margin-bottom: 10px;
+}
+
+.entity-card.alarm {
+    border-left-color: #6c757d; /* Gray as default */
+}
+
+.entity-card.switch {
+    border-left-color: #6c757d; /* Gray as default */
+}
+
+/* Switch status-based border colors - higher specificity */
+.entity-card.switch.switch-on {
+    border-left-color: #28a745 !important; /* Green for on */
+}
+
+.entity-card.switch.switch-off {
+    border-left-color: #dc3545 !important; /* Red for off */
+}
+
+/* Alarm status-based border colors - higher specificity */
+.entity-card.alarm.alarm-on {
+    border-left-color: #28a745 !important; /* Green for on/active */
+}
+
+.entity-card.alarm.alarm-off {
+    border-left-color: #dc3545 !important; /* Red for off/inactive */
+}
+
+.token-status {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.token-valid {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+}
+
+.token-invalid {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+}

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation - Rust+ Provider</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="shared.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 bg-light p-3">
+                <h4><i class="bi bi-gear"></i> Rust+ Provider</h4>
+                <hr>
+                <ul class="nav nav-pills flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="bi bi-house"></i> Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/pairing">
+                            <i class="bi bi-link-45deg"></i> Server Pairing
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/servers">
+                            <i class="bi bi-database"></i> Server Data
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/api-docs">
+                            <i class="bi bi-book"></i> API Documentation
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="col-md-9 p-4">
+                <h2><i class="bi bi-book"></i> API Documentation</h2>
+                <p class="text-muted">Comprehensive WebSocket API reference for interacting with Rust+ servers.</p>
+                    
+                    <hr class="my-4">
+                    <h5 class="text-primary">WebSocket Commands:</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="api-doc mb-4">
+                                <h6>Get All Servers</h6>
+                                <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.7rem;">
+// Get list of all paired servers
+websocket.send(JSON.stringify({
+    "type": "get_servers"
+}));</pre>
+                                <p class="mt-2 mb-1">Returns list of all paired servers with their status and smart devices.</p>
+                                <strong>Response:</strong>
+                                <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "servers_list",
+  "data": {
+    "servers": {
+      "943118f4-9988-7ddb-9fa1-d38d212fac16": {
+        "name": "HopHop Build server | Main",
+        "ip": "186.105.34.106",
+        "port": "28082",
+        "status": "connected",
+        "switches": [
+          {
+            "entityId": "5774913",
+            "entityName": "Smart Switch",
+            "entityType": "switch"
+          }
+        ],
+        "alarms": [
+          {
+            "entityId": "5774912", 
+            "entityName": "Smart Alarm",
+            "entityType": "alarm"
+          }
+        ]
+      }
+    }
+  }
+}</pre>
+                            </div>
+                            
+                            <div class="api-doc mb-4">
+                                <h6>Get Server Info</h6>
+                                <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.7rem;">
+// Get live server information
+websocket.send(JSON.stringify({
+    "type": "get_server_info",
+    "serverId": "your-server-id"
+}));</pre>
+                                <p class="mt-2 mb-1">Returns live server information (population, time, etc.).</p>
+                                <strong>Response:</strong>
+                                <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "server_info",
+  "data": {
+    "name": "HopHop Build server | Main",
+    "ip": "186.105.34.106",
+    "port": "28082",
+    "population": 0,
+    "maxPopulation": 100,
+    "time": "12:34:56",
+    "sunrise": "06:00:00",
+    "sunset": "18:00:00"
+  }
+}</pre>
+                            </div>
+                            
+                            <div class="api-doc mb-4">
+                                <h6>Get Map Data</h6>
+                                <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.7rem;">
+// Get map image and markers
+websocket.send(JSON.stringify({
+    "type": "get_map_data",
+    "serverId": "your-server-id"
+}));</pre>
+                                <p class="mt-2 mb-1">Returns map image and marker data.</p>
+                                <strong>Response:</strong>
+                                <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "map_data",
+  "data": {
+    "map": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=",
+    "size": 1024,
+    "timestamp": 1640995200,
+    "oceanMargin": 500,
+    "monuments": [
+      {
+        "token": "harbor_display_name",
+        "x": 3690.75,
+        "y": 3907.10
+      },
+      {
+        "token": "airfield_display_name", 
+        "x": 2843.70,
+        "y": 3174.95
+      },
+      {
+        "token": "outpost",
+        "x": 2929.23,
+        "y": 622.80
+      }
+    ],
+    "markers": {
+      "markers": [
+        {
+          "id": 563890193,
+          "type": "VendingMachine",
+          "x": 2958.51,
+          "y": 640.64,
+          "name": "Vendor Farming",
+          "sellOrders": [
+            {
+              "itemId": -1488398114,
+              "quantity": 1,
+              "currencyId": -932201673,
+              "costPerItem": 30,
+              "amountInStock": 10
+            }
+          ]
+        }
+      ]
+    },
+    "background": "#0B3B4A"
+  }
+}</pre>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="api-doc mb-4">
+                                <h6>Toggle Smart Switch</h6>
+                                <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.7rem;">
+// Toggle a smart switch
+websocket.send(JSON.stringify({
+    "type": "toggle_switch",
+    "serverId": "your-server-id",
+    "entityId": "entity-id"
+}));</pre>
+                                <p class="mt-2 mb-1">Toggles a smart switch on/off.</p>
+                                <strong>Response:</strong>
+                                <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "switch_toggled",
+  "data": {
+    "entityId": "entity-id",
+    "newState": true,
+    "message": "Switch turned on successfully"
+  }
+}</pre>
+                            </div>
+                            
+                            <div class="api-doc mb-4">
+                                <h6>Send Team Message</h6>
+                                <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.7rem;">
+// Send team chat message
+websocket.send(JSON.stringify({
+    "type": "send_team_message",
+    "serverId": "your-server-id",
+    "message": "Hello team!"
+}));</pre>
+                                <p class="mt-2 mb-1">Sends a message to team chat.</p>
+                                <strong>Response:</strong>
+                                <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "team_message_sent",
+  "data": {
+    "serverId": "df9525f2-4489-b8d9-ff19-b85296ddb39f",
+    "message": "Test message from Rust+ Provider at 2025-10-14T00:24:22.499Z",
+    "success": true
+  }
+}</pre>
+                            </div>
+                            
+                            <div class="api-doc mb-4">
+                                <h6>Get Team Info</h6>
+                                <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.7rem;">
+// Get team information
+websocket.send(JSON.stringify({
+    "type": "get_team_info",
+    "serverId": "your-server-id"
+}));</pre>
+                                <p class="mt-2 mb-1">Returns team members, leader, and notes.</p>
+                                <strong>Response:</strong>
+                                <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "team_info",
+  "data": {
+    "serverId": "df9525f2-4489-b8d9-ff19-b85296ddb39f",
+    "teamInfo": {
+      "seq": 2,
+      "teamInfo": {
+        "leaderSteamId": "76561198056409776",
+        "members": [
+          {
+            "steamId": "76561198056409776",
+            "name": "nerif.tafu",
+            "x": 548.399658203125,
+            "y": 3884.44482421875,
+            "isOnline": true,
+            "spawnTime": 1760374002,
+            "isAlive": true,
+            "deathTime": 1760108753
+          }
+        ],
+        "mapNotes": [
+          {
+            "x": 907.8348388671875,
+            "y": 3588.74658203125
+          }
+        ]
+      }
+    }
+  }
+}</pre>
+                            </div>
+                            
+                            <div class="api-doc mb-4">
+                                <h6>Get Entity Info</h6>
+                                <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.7rem;">
+// Get entity status
+websocket.send(JSON.stringify({
+    "type": "get_entity_info",
+    "serverId": "your-server-id",
+    "entityId": "entity-id"
+}));</pre>
+                                <p class="mt-2 mb-1">Returns current status of a smart device.</p>
+                                <strong>Response:</strong>
+                                <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "type": "entity_info",
+  "data": {
+    "entityId": "entity-id",
+    "isActive": true,
+    "available": true,
+    "lastChecked": "2025-01-13T12:34:56.789Z"
+  }
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h5 class="text-primary">Listening to Broadcasts:</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="api-doc mb-4">
+                                <h6>Team Chat Messages</h6>
+                                <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.7rem;">
+// Listen for team chat messages
+websocket.onmessage = function(event) {
+    const message = JSON.parse(event.data);
+    
+    if (message.type === 'team_message') {
+        console.log(message.data);
+    }
+};</pre>
+                                <p class="mt-2 mb-1">Receives team chat messages from connected servers.</p>
+                                <strong>Console Output:</strong>
+                                <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "playerName": "nerif.tafu",
+  "message": "Testing 123",
+  "timestamp": 1760386074,
+  "serverName": "HopHop Build server | Main"
+}</pre>
+                            </div>
+                            
+                            <div class="api-doc mb-4">
+                                <h6>Smart Entity State Changes</h6>
+                                <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.7rem;">
+// Listen for entity state changes
+websocket.onmessage = function(event) {
+    const message = JSON.parse(event.data);
+    
+    if (message.type === 'entity_changed') {
+        console.log(message.data);
+    }
+};</pre>
+                                <p class="mt-2 mb-1">Receives notifications when smart switches or alarms change state.</p>
+                                <strong>Console Output:</strong>
+                                <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+{
+  "entityId": "6141035",
+  "entityName": "Smart Switch",
+  "isActive": true,
+  "serverName": "HopHop Build server | Main"
+}</pre>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="api-doc mb-4">
+                                <h6>Server Connection Events</h6>
+                                <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.7rem;">
+// Listen for server connection changes
+websocket.onmessage = function(event) {
+    const message = JSON.parse(event.data);
+    
+    if (message.type === 'server_connected') {
+        console.log(message.data);
+    } else if (message.type === 'server_disconnected') {
+        console.log(message.data);
+    }
+};</pre>
+                                <p class="mt-2 mb-1">Receives notifications when servers connect or disconnect.</p>
+                                <strong>Console Output:</strong>
+                                <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+// Server Connected
+{
+  "serverId": "df9525f2-4489-b8d9-ff19-b85296ddb39f",
+  "serverName": "HopHop Build server | Main"
+}
+
+// Server Disconnected
+{
+  "serverId": "df9525f2-4489-b8d9-ff19-b85296ddb39f",
+  "serverName": "HopHop Build server | Main"
+}
+
+// Server Connecting
+{
+  "serverId": "df9525f2-4489-b8d9-ff19-b85296ddb39f",
+  "serverName": "HopHop Build server | Main"
+}
+
+// Server Error
+{
+  "serverId": "df9525f2-4489-b8d9-ff19-b85296ddb39f",
+  "serverName": "HopHop Build server | Main",
+  "error": "Connection timeout"
+}</pre>
+                            </div>
+                            
+                            <div class="api-doc mb-4">
+                                <h6>Live Events Feed</h6>
+                                <pre class="bg-dark text-light p-2 rounded" style="font-size: 0.7rem;">
+// Listen for all live events
+websocket.onmessage = function(event) {
+    const message = JSON.parse(event.data);
+    
+    if (message.type === 'live_event') {
+        console.log(message.data);
+    }
+};</pre>
+                                <p class="mt-2 mb-1">Receives all live events including entity changes, server events, and team chat.</p>
+                                <strong>Console Output:</strong>
+                                <pre class="bg-light text-dark p-2 rounded mt-1" style="font-size: 0.7rem;">
+// Entity State Changes
+{
+  "type": "Entity Change",
+  "message": "Entity 6141035 is now ACTIVE on HopHop Build server | Main",
+  "timestamp": "2025-10-14T00:48:11.117Z"
+}
+
+// Team Chat Messages
+{
+  "type": "Team Chat",
+  "message": "nerif.tafu: Testing 123",
+  "timestamp": "2025-10-14T00:48:11.117Z"
+}
+
+// Server Connection Events
+{
+  "type": "Server Connected",
+  "message": "Server df9525f2-4489-b8d9-ff19-b85296ddb39f connected successfully",
+  "timestamp": "2025-10-14T00:48:11.117Z"
+}
+
+// Entity Management
+{
+  "type": "Entity Paired",
+  "message": "Smart Switch paired successfully",
+  "timestamp": "2025-10-14T00:48:11.117Z"
+}
+
+{
+  "type": "Entity Renamed",
+  "message": "Entity 6141035 renamed to 'Main Door Switch'",
+  "timestamp": "2025-10-14T00:48:11.117Z"
+}
+
+{
+  "type": "Entity Deleted",
+  "message": "Entity 6141035 deleted successfully",
+  "timestamp": "2025-10-14T00:48:11.117Z"
+}
+
+// FCM Registration
+{
+  "type": "FCM Registration",
+  "message": "FCM tokens registered successfully",
+  "timestamp": "2025-10-14T00:48:11.117Z"
+}
+
+// Server Data Updates
+{
+  "type": "Map Markers",
+  "message": "Map markers updated for server",
+  "timestamp": "2025-10-14T00:48:11.117Z"
+}
+
+{
+  "type": "Team Info",
+  "message": "Team information updated for server",
+  "timestamp": "2025-10-14T00:48:11.117Z"
+}
+
+{
+  "type": "Server Info",
+  "message": "Server information updated for server",
+  "timestamp": "2025-10-14T00:48:11.117Z"
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -8,28 +8,55 @@ const PushReceiverClient = require('@liamcottle/push-receiver/src/client');
 class FcmRegistrationService {
   constructor() {
     this.driver = null;
+    this.progressCallback = null;
+  }
+  
+  // Set progress callback for real-time updates
+  setProgressCallback(callback) {
+    this.progressCallback = callback;
+  }
+  
+  // Send progress update
+  sendProgress(step, message, percentage = null) {
+    if (this.progressCallback) {
+      this.progressCallback({
+        step,
+        message,
+        percentage,
+        timestamp: new Date().toISOString()
+      });
+    }
   }
   
   // Main method to register with FCM using Steam credentials
   async registerWithSteamCredentials(username, password, twoFactor) {
     try {
       console.log('Starting FCM registration process...');
+      this.sendProgress(1, 'Starting FCM registration process...', 0);
       
       // Step 1: Get FCM credentials
+      this.sendProgress(1, 'Obtaining FCM credentials...', 10);
       const fcmCredentials = await this.getFcmCredentials();
       console.log('FCM credentials obtained');
+      this.sendProgress(1, 'FCM credentials obtained', 20);
       
       // Step 2: Get Expo push token
+      this.sendProgress(2, 'Getting Expo push token...', 30);
       const expoPushToken = await this.getExpoPushToken(fcmCredentials.fcm.token);
       console.log('Expo push token obtained');
+      this.sendProgress(2, 'Expo push token obtained', 40);
       
       // Step 3: Get Rust+ auth token using Selenium
+      this.sendProgress(3, 'Starting Steam login process...', 50);
       const rustplusAuthToken = await this.getRustplusAuthToken(username, password, twoFactor);
       console.log('Rust+ auth token obtained');
+      this.sendProgress(3, 'Rust+ auth token obtained', 80);
       
       // Step 4: Register with Rust+ API
+      this.sendProgress(4, 'Registering with Rust+ API...', 90);
       await this.registerWithRustPlus(rustplusAuthToken, expoPushToken);
       console.log('Successfully registered with Rust+ API');
+      this.sendProgress(4, 'Successfully registered with Rust+ API', 100);
       
       return {
         fcm_credentials: fcmCredentials,
@@ -88,16 +115,19 @@ class FcmRegistrationService {
   // Gets Rust+ auth token using Selenium automation
   async getRustplusAuthToken(username, password, twoFactor) {
     try {
+      this.sendProgress(3, 'Initializing browser...', 50);
+      
       // Initialize Chrome driver
       const chrome = require('selenium-webdriver/chrome');
       const options = new chrome.Options();
-      options.addArguments('--headless=new');
+      // options.addArguments('--headless=new');
       options.addArguments('--no-sandbox');
       options.addArguments('--disable-dev-shm-usage');
       options.addArguments('--disable-gpu');
       options.addArguments('--disable-web-security');
       options.addArguments('--disable-popup-blocking');
-      options.addArguments('--user-data-dir=/tmp/temporary-chrome-profile-dir-rustplus');
+      options.addArguments('--incognito');
+      options.addArguments('--disable-extensions');
       
       this.driver = new Builder()
         .forBrowser('chrome')
@@ -107,9 +137,11 @@ class FcmRegistrationService {
       // Set window size as shown in the Selenium test
       await this.driver.manage().window().setRect({ width: 1686, height: 880 });
       
+      this.sendProgress(3, 'Navigating to Rust+ login page...', 55);
       // Navigate to Rust+ login page
       await this.driver.get('https://companion-rust.facepunch.com/login');
       
+      this.sendProgress(3, 'Clicking Steam login button...', 60);
       // Wait for page to load and click the span element (Steam login button)
       const steamButton = await this.driver.wait(
         until.elementLocated(By.css('span')),
@@ -117,13 +149,18 @@ class FcmRegistrationService {
       );
       await steamButton.click();
       
+      this.sendProgress(3, 'Waiting for Steam login page...', 65);
       // Wait for Steam login page to load
-      await this.driver.wait(until.titleContains('Sign In'), 10000);
+      await this.driver.wait(async (driver) => {
+        const title = await driver.getTitle();
+        return title.includes('Sign In') || title.includes('Steam Community');
+      }, 20000, 'Expected either "Sign In" or "Steam Community" in title');
       
+      this.sendProgress(3, 'Entering Steam credentials...', 70);
       // Fill in Steam credentials using the correct XPath selectors
       const usernameField = await this.driver.wait(
         until.elementLocated(By.xpath('/html/body/div[1]/div[7]/div[4]/div[1]/div[1]/div/div/div/div[2]/div/form/div[1]/input')),
-        10000
+        50000
       );
       await usernameField.clear();
       await usernameField.sendKeys(username);
@@ -137,8 +174,8 @@ class FcmRegistrationService {
       
       // Click the sign in button
       const signInButton = await this.driver.wait(
-        until.elementLocated(By.xpath('/html/body/div[1]/div[7]/div[4]/div[1]/div[1]/div/div/div/div[2]/div/form/div[4]/button')),
-        10000
+        until.elementLocated(By.xpath('//button[contains(text(), "Sign in")]')),
+        50000
       );
       await signInButton.click();
       
@@ -191,9 +228,11 @@ class FcmRegistrationService {
         // If we found the 2FA page, handle it
         if (enterCodeElement) {
           console.log('2FA required, handling authentication...');
+          this.sendProgress(3, '2FA authentication required...', 75);
           if (twoFactor) {
             await this.handleTwoFactor(twoFactor);
             console.log('2FA completed successfully, continuing with normal flow...');
+            this.sendProgress(3, '2FA authentication completed', 80);
           } else {
             throw new Error('Steam account requires 2FA authentication, but no 2FA code was provided. Please provide a 2FA code.');
           }
@@ -208,12 +247,26 @@ class FcmRegistrationService {
         
         // Only try to click final sign-in button if no 2FA is required
         try {
+          console.log('Looking for final sign-in button...');
           const finalSignInButton = await this.driver.wait(
-            until.elementLocated(By.xpath('//*[@id="imageLogin"]')),
+            until.elementLocated(By.id('imageLogin')),
             10000
           );
-          await finalSignInButton.click();
-          console.log('Clicked final sign in button');
+          
+          // Check if element is visible and enabled before clicking
+          const isDisplayed = await finalSignInButton.isDisplayed();
+          const isEnabled = await finalSignInButton.isEnabled();
+          console.log(`Final sign-in button - Displayed: ${isDisplayed}, Enabled: ${isEnabled}`);
+          
+          if (isDisplayed && isEnabled) {
+            // Scroll into view and click
+            await this.driver.executeScript("arguments[0].scrollIntoView(true);", finalSignInButton);
+            await this.driver.sleep(500); // Small delay after scroll
+            await finalSignInButton.click();
+            console.log('Clicked final sign in button');
+          } else {
+            console.log('Final sign-in button not in valid state for clicking');
+          }
         } catch (signInError) {
           console.log('Final sign-in button not found, may have already been clicked or redirected');
         }
@@ -347,12 +400,31 @@ class FcmRegistrationService {
       
       // Click the "Sign in" button
       try {
+        console.log('Looking for sign-in button...');
         const signInButton = await this.driver.wait(
-          until.elementLocated(By.xpath('//*[@id="imageLogin"]')),
+          until.elementLocated(By.id('imageLogin')),
           10000
         );
+        
+        // Check if element is visible and enabled before clicking
+        const isDisplayed = await signInButton.isDisplayed();
+        const isEnabled = await signInButton.isEnabled();
+        console.log(`Sign-in button - Displayed: ${isDisplayed}, Enabled: ${isEnabled}`);
+        
+        if (!isDisplayed) {
+          throw new Error('Sign-in button is not visible');
+        }
+        if (!isEnabled) {
+          throw new Error('Sign-in button is not enabled');
+        }
+        
+        // Scroll into view and click
+        await this.driver.executeScript("arguments[0].scrollIntoView(true);", signInButton);
+        await this.driver.sleep(500); // Small delay after scroll
         await signInButton.click();
+        console.log('Successfully clicked sign-in button');
       } catch (signInError) {
+        console.error('Error clicking sign-in button:', signInError.message);
         // If the sign-in button is not found, check if we're still on the 2FA page
         const currentUrl = await this.driver.getCurrentUrl();
         if (currentUrl.includes('steamcommunity.com') && !currentUrl.includes('companion-rust.facepunch.com')) {

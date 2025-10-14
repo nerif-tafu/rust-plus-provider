@@ -90,6 +90,7 @@ class JsonManager {
     if (!config.token_expiry) return false;
     
     const now = new Date().getTime();
+    // token_expiry is now stored in milliseconds (JavaScript format)
     return now < config.token_expiry;
   }
   
@@ -112,6 +113,27 @@ class JsonManager {
     if (!this.areTokensValid()) return null;
     const config = this.readConfig();
     return config.rustplus_auth_token;
+  }
+  
+  // Clears all FCM tokens and keeps servers
+  clearTokens() {
+    try {
+      const config = this.readConfig();
+      
+      // Clear token-related fields but keep servers
+      config.fcm_credentials = null;
+      config.expo_push_token = null;
+      config.rustplus_auth_token = null;
+      config.token_expiry = null;
+      
+      // Keep servers intact
+      // config.servers remains unchanged
+      
+      return this.writeConfig(config);
+    } catch (error) {
+      console.error('Error clearing tokens:', error);
+      return false;
+    }
   }
 }
 

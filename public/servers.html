@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Data - Rust+ Provider</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="shared.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 bg-light p-3">
+                <h4><i class="bi bi-gear"></i> Rust+ Provider</h4>
+                <hr>
+                <ul class="nav nav-pills flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="bi bi-house"></i> Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/pairing">
+                            <i class="bi bi-link-45deg"></i> Server Pairing
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/servers">
+                            <i class="bi bi-database"></i> Server Data
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/api-docs">
+                            <i class="bi bi-book"></i> API Documentation
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2><i class="bi bi-database me-2"></i>Server Data</h2>
+                        <button class="btn btn-outline-primary" onclick="window.serversPage.refreshAllData()">
+                            <i class="bi bi-arrow-clockwise me-1"></i>
+                            Refresh All
+                        </button>
+                    </div>
+
+                    <!-- Server Selection -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="serverSelect" class="form-label">Select Server:</label>
+                            <select id="serverSelect" class="form-select" onchange="window.serversPage.loadServerData()">
+                                <option value="">Choose a server...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Connection Status:</label>
+                            <div id="connectionStatus" class="mt-2">
+                                <span class="status-indicator status-disconnected"></span>
+                                <span>Not Connected</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Server Data Tabs -->
+                    <ul class="nav nav-tabs" id="dataTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="server-info-tab" data-bs-toggle="tab" data-bs-target="#server-info" type="button" role="tab">
+                                <i class="bi bi-info-circle me-1"></i>Server Info
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="map-data-tab" data-bs-toggle="tab" data-bs-target="#map-data" type="button" role="tab">
+                                <i class="bi bi-map me-1"></i>Map & Markers
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="smart-devices-tab" data-bs-toggle="tab" data-bs-target="#smart-devices" type="button" role="tab">
+                                <i class="bi bi-lightning me-1"></i>Smart Devices
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content mt-4" id="dataTabContent">
+                        <!-- Server Info Tab -->
+                        <div class="tab-pane fade show active" id="server-info" role="tabpanel">
+                            <h5>Live Server Information</h5>
+                            <div id="serverInfoOutput" class="json-output">
+                                Select a server to view information...
+                            </div>
+                            <small class="text-muted" id="serverInfoLastUpdated">Last updated: Never</small>
+                        </div>
+
+                        <!-- Map Data Tab -->
+                        <div class="tab-pane fade" id="map-data" role="tabpanel">
+                            <h5>Map & Marker Data</h5>
+                            <div id="mapDataOutput" class="json-output">
+                                Select a server to view map data...
+                            </div>
+                            <small class="text-muted" id="mapDataLastUpdated">Last updated: Never</small>
+                        </div>
+
+                        <!-- Smart Devices Tab -->
+                        <div class="tab-pane fade" id="smart-devices" role="tabpanel">
+                            <h5>Smart Devices</h5>
+                            <div id="smartDevicesOutput" class="json-output">
+                                Select a server to view smart devices...
+                            </div>
+                            <small class="text-muted" id="smartDevicesLastUpdated">Last updated: Never</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="navigation.js"></script>
+    <script src="servers.js"></script>
+</body>
+</html>
