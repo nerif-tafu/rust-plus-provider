@@ -67,6 +67,13 @@ class FcmRegistrationService {
       
     } catch (error) {
       console.error('FCM registration failed:', error);
+      
+      // Don't crash the service for FCM registration errors
+      if (error.message.includes('SessionNotCreatedError')) {
+        console.error('Chrome session creation failed - this may be due to system resource constraints');
+        throw new Error('FCM registration failed: Chrome session could not be created. Please try again later.');
+      }
+      
       throw error;
     } finally {
       await this.cleanup();
@@ -118,6 +125,20 @@ class FcmRegistrationService {
     try {
       this.sendProgress(3, 'Initializing browser...', 50);
       
+      // Kill any existing Chrome processes to prevent conflicts
+      try {
+        const { exec } = require('child_process');
+        exec('pkill -f chrome || true', (error) => {
+          if (error && !error.message.includes('No matching processes')) {
+            console.log('Warning: Could not kill existing Chrome processes:', error.message);
+          }
+        });
+        // Wait a moment for processes to be killed
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.log('Warning: Could not clean up existing Chrome processes:', error.message);
+      }
+      
       // Initialize Chrome driver
       const chrome = require('selenium-webdriver/chrome');
       const options = new chrome.Options();
@@ -129,10 +150,37 @@ class FcmRegistrationService {
       options.addArguments('--disable-popup-blocking');
       options.addArguments('--incognito');
       options.addArguments('--disable-extensions');
+      options.addArguments('--disable-background-timer-throttling');
+      options.addArguments('--disable-backgrounding-occluded-windows');
+      options.addArguments('--disable-renderer-backgrounding');
+      options.addArguments('--disable-features=TranslateUI');
+      options.addArguments('--disable-ipc-flooding-protection');
       
       // Use unique user data directory to avoid conflicts
-      this.userDataDir = `/tmp/chrome-user-data-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const os = require('os');
+      const path = require('path');
+      this.userDataDir = path.join(os.homedir(), `.chrome-profile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
       options.addArguments(`--user-data-dir=${this.userDataDir}`);
+      
+      // Additional options to prevent conflicts
+      options.addArguments('--single-process');
+      options.addArguments('--disable-background-networking');
+      options.addArguments('--disable-default-apps');
+      options.addArguments('--disable-sync');
+      options.addArguments('--disable-logging');
+      options.addArguments('--disable-permissions-api');
+      options.addArguments('--disable-plugins');
+      options.addArguments('--disable-preconnect');
+      options.addArguments('--disable-print-preview');
+      options.addArguments('--disable-prompt-on-repost');
+      options.addArguments('--disable-save-password-bubble');
+      options.addArguments('--disable-single-click-autofill');
+      options.addArguments('--disable-speech-api');
+      options.addArguments('--disable-web-resources');
+      options.addArguments('--no-first-run');
+      options.addArguments('--no-default-browser-check');
+      options.addArguments('--no-pings');
+      options.addArguments('--no-zygote');
       
       this.driver = new Builder()
         .forBrowser('chrome')
@@ -493,9 +541,9 @@ class FcmRegistrationService {
       if (this.userDataDir) {
         try {
           const fs = require('fs');
-          const path = require('path');
           if (fs.existsSync(this.userDataDir)) {
             fs.rmSync(this.userDataDir, { recursive: true, force: true });
+            console.log(`Cleaned up Chrome profile directory: ${this.userDataDir}`);
           }
         } catch (error) {
           console.error('Error cleaning up user data directory:', error);
