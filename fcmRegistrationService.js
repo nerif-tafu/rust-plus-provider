@@ -5,6 +5,22 @@ const { v4: uuidv4 } = require('uuid');
 const AndroidFCM = require('@liamcottle/push-receiver/src/android/fcm');
 const PushReceiverClient = require('@liamcottle/push-receiver/src/client');
 
+/** When SELENIUM_HEADLESS is unset, empty, or invalid, default to headless (true). */
+function isSeleniumHeadless() {
+  const raw = process.env.SELENIUM_HEADLESS;
+  if (raw === undefined || raw === null || String(raw).trim() === '') {
+    return true;
+  }
+  const normalized = String(raw).trim().toLowerCase();
+  if (['0', 'false', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+  return true;
+}
+
 class FcmRegistrationService {
   constructor() {
     this.driver = null;
@@ -138,9 +154,11 @@ class FcmRegistrationService {
       // Initialize Chrome driver with minimal required options
       const chrome = require('selenium-webdriver/chrome');
       const options = new chrome.Options();
-      
-      // Essential options for headless Chrome in containers
-      options.addArguments('--headless=new');
+      const headless = isSeleniumHeadless();
+
+      if (headless) {
+        options.addArguments('--headless=new');
+      }
       options.addArguments('--no-sandbox');
       options.addArguments('--disable-dev-shm-usage');
       options.addArguments('--disable-gpu');
@@ -186,14 +204,14 @@ class FcmRegistrationService {
       this.sendProgress(3, 'Entering Steam credentials...', 70);
       // Fill in Steam credentials using the correct XPath selectors
       const usernameField = await this.driver.wait(
-        until.elementLocated(By.xpath('/html/body/div[1]/div[7]/div[4]/div[1]/div[1]/div/div/div/div[2]/div/form/div[1]/input')),
+        until.elementLocated(By.xpath('/html/body/div[1]/div[6]/div[4]/div[1]/div[1]/div/div/div/div[2]/div/form/div[1]/input')),
         50000
       );
       await usernameField.clear();
       await usernameField.sendKeys(username);
       
       const passwordField = await this.driver.wait(
-        until.elementLocated(By.xpath('/html/body/div[1]/div[7]/div[4]/div[1]/div[1]/div/div/div/div[2]/div/form/div[2]/input')),
+        until.elementLocated(By.xpath('/html/body/div[1]/div[6]/div[4]/div[1]/div[1]/div/div/div/div[2]/div/form/div[2]/input')),
         10000
       );
       await passwordField.clear();

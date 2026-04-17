@@ -1,4 +1,6 @@
 // server.js - Main application entry point
+require('dotenv').config();
+
 const WebSocket = require('ws');
 const http = require('http');
 const path = require('path');
