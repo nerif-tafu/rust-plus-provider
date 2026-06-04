@@ -5,6 +5,10 @@ class RustPlusProvider {
         this.clientId = null;
         this.isConnected = false;
         this.servers = {};
+        this.hasValidTokens = false;
+        this.tokenExpiryTime = null;
+        this.lastTokenRefresh = null;
+        this.countdownInterval = null;
         this.init();
         this.setupTabHandlers();
     }
@@ -43,18 +47,18 @@ class RustPlusProvider {
     }
 
     setupEventListeners() {
-        // Token form submission
-        document.getElementById('tokenForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.updateTokens();
+        document.getElementById('fetchTokens').addEventListener('click', () => {
+            this.fetchTokens();
         });
 
-        // Delete tokens button
+        document.getElementById('manualUpdateTokens').addEventListener('click', () => {
+            this.manualUpdateTokens();
+        });
+
         document.getElementById('deleteTokens').addEventListener('click', () => {
             this.deleteTokens();
         });
 
-        // Refresh servers button
         document.getElementById('refreshServers').addEventListener('click', () => {
             this.refreshAllConnections();
         });
@@ -101,8 +105,8 @@ class RustPlusProvider {
                 break;
 
             case 'connection_status':
-                // Update token status with detailed expiry information
                 this.updateTokenStatusFromConnectionStatus(message.data);
+                this.updateTokenManagementUI(message.data);
                 break;
                 
                 
@@ -185,10 +189,14 @@ class RustPlusProvider {
                 break;
                 
             case 'fcm_register_success':
-                this.addLiveEvent('FCM Registration', message.data.message);
+                this.addLiveEvent(
+                    message.data.is_auto_refresh ? 'FCM Auto-Refresh' : 'FCM Registration',
+                    message.data.message
+                );
                 this.clearFCMErrors();
                 this.hideRegistrationProgress();
                 this.hideLoading();
+                this.setTokenButtonsDisabled(false);
                 this.getConnectionStatus();
                 this.loadServers();
                 break;
@@ -205,6 +213,9 @@ class RustPlusProvider {
                 
             case 'tokens_deleted':
                 this.addLiveEvent('Tokens Deleted', message.data.message);
+                this.hasValidTokens = false;
+                this.tokenExpiryTime = null;
+                this.lastTokenRefresh = null;
                 this.getConnectionStatus();
                 this.loadServers();
                 break;
@@ -275,8 +286,12 @@ class RustPlusProvider {
                     this.showFCMError('Rate Limited', 'Too many login attempts. Please wait a few minutes before trying again.');
                 } else if (errorMessage.includes('Chrome session could not be created')) {
                     this.showFCMError('Browser Error', 'Failed to start browser automation. Please ensure Chrome is installed and try again.');
-                } else if (errorMessage.includes('FCM registration failed')) {
-                    this.showFCMError('Registration Failed', errorMessage);
+                } else if (
+                    errorMessage.includes('FCM registration failed') ||
+                    errorMessage.includes('FCM token refresh failed')
+                ) {
+                    this.showFCMError('Token Update Failed', errorMessage);
+                    this.setTokenButtonsDisabled(false);
                 } else {
                     // For any other error, check if it might be FCM-related and hide progress
                     if (this.isFCMRelatedError(errorMessage)) {
@@ -312,25 +327,41 @@ class RustPlusProvider {
     }
 
 
-    updateTokens() {
+    fetchTokens() {
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
 
         if (!username || !password) {
-            this.showError('Username and password are required');
+            this.showError('Steam username and password are required for first-time setup');
             return;
         }
 
-        // Clear any existing error messages before starting new registration
         this.clearFCMErrors();
-        
-        this.showLoading('Updating FCM tokens...');
-        
+        this.showLoading('Fetching FCM tokens...');
+        this.setTokenButtonsDisabled(true);
+
         this.sendMessage({
             type: 'fcm_register',
-            data: {
-                username: username,
-                password: password
+            data: { username, password }
+        });
+    }
+
+    manualUpdateTokens() {
+        if (!confirm('Refresh FCM tokens using the saved Steam browser session?')) {
+            return;
+        }
+
+        this.clearFCMErrors();
+        this.showLoading('Updating FCM tokens...');
+        this.setTokenButtonsDisabled(true);
+        this.sendMessage({ type: 'fcm_refresh_tokens' });
+    }
+
+    setTokenButtonsDisabled(disabled) {
+        ['fetchTokens', 'manualUpdateTokens', 'deleteTokens'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.disabled = disabled;
             }
         });
     }
@@ -698,8 +729,8 @@ class RustPlusProvider {
     }
 
     showFCMError(title, message) {
-        // Hide any existing loading states
         this.hideLoading();
+        this.setTokenButtonsDisabled(false);
         
         // Show error in progress bar first, then hide it after 3 seconds
         this.showRegistrationError(title, message);
@@ -825,6 +856,102 @@ class RustPlusProvider {
         `;
     }
 
+    formatCountdown(ms) {
+        if (ms <= 0) {
+            return '0s';
+        }
+        const totalSeconds = Math.floor(ms / 1000);
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        const parts = [];
+        if (days > 0) parts.push(`${days}d`);
+        if (hours > 0 || days > 0) parts.push(`${hours}h`);
+        if (minutes > 0 || hours > 0 || days > 0) parts.push(`${minutes}m`);
+        parts.push(`${seconds}s`);
+        return parts.join(' ');
+    }
+
+    updateTokenManagementUI(connectionStatus) {
+        const fcmListener = connectionStatus.fcmListener || {};
+        const hasValidTokens = !!fcmListener.hasValidTokens;
+        const hasStoredTokens = !!fcmListener.hasStoredTokens;
+
+        this.hasValidTokens = hasValidTokens;
+        if (fcmListener.tokenExpiry?.expiryDate) {
+            this.tokenExpiryTime = new Date(fcmListener.tokenExpiry.expiryDate).getTime();
+        } else if (fcmListener.tokenExpiry?.timeUntilExpiry && hasValidTokens) {
+            this.tokenExpiryTime = Date.now() + fcmListener.tokenExpiry.timeUntilExpiry;
+        }
+        this.lastTokenRefresh = fcmListener.tokenRefresh?.lastRefresh || null;
+
+        const showHasTokens = hasValidTokens || hasStoredTokens;
+        document.getElementById('tokenCredentialFields').style.display = showHasTokens ? 'none' : 'block';
+        document.getElementById('tokenProfileHint').style.display = showHasTokens ? 'block' : 'none';
+        document.getElementById('tokenActionsNoTokens').style.display = showHasTokens ? 'none' : 'block';
+        document.getElementById('tokenActionsHasTokens').style.display = showHasTokens ? 'block' : 'none';
+
+        const refreshInfo = document.getElementById('tokenRefreshInfo');
+        if (!showHasTokens) {
+            refreshInfo.style.display = 'none';
+            this.stopCountdownTimer();
+            return;
+        }
+
+        refreshInfo.style.display = 'block';
+        this.renderTokenRefreshInfo(fcmListener);
+        this.startCountdownTimer();
+    }
+
+    renderTokenRefreshInfo(fcmListener) {
+        const refreshInfo = document.getElementById('tokenRefreshInfo');
+        const tokenRefresh = fcmListener.tokenRefresh || {};
+        const lastRefreshText = tokenRefresh.lastAutoRefreshDate
+            ? new Date(tokenRefresh.lastAutoRefreshDate).toLocaleString()
+            : 'Never';
+        const autoDays = fcmListener.autoRefreshIntervalDays || 5;
+        const nextAutoText = tokenRefresh.nextAutoRefreshDate
+            ? new Date(tokenRefresh.nextAutoRefreshDate).toLocaleString()
+            : '—';
+
+        let expiryLine = 'Expiry: unknown';
+        if (this.tokenExpiryTime) {
+            const remaining = this.tokenExpiryTime - Date.now();
+            expiryLine = `Expires in: <strong id="tokenExpiryCountdown">${this.formatCountdown(remaining)}</strong> (${new Date(this.tokenExpiryTime).toLocaleString()})`;
+        }
+
+        const inProgress = fcmListener.tokenRefreshInProgress
+            ? '<br><span class="text-primary">Token refresh in progress…</span>'
+            : '';
+
+        refreshInfo.innerHTML = `
+            <div><strong>Last auto refresh:</strong> ${lastRefreshText}</div>
+            <div><strong>Next scheduled auto refresh:</strong> ${nextAutoText} (every ${autoDays} days)</div>
+            <div>${expiryLine}</div>
+            ${inProgress}
+        `;
+    }
+
+    startCountdownTimer() {
+        this.stopCountdownTimer();
+        this.countdownInterval = setInterval(() => {
+            if (!this.tokenExpiryTime) return;
+            const el = document.getElementById('tokenExpiryCountdown');
+            if (el) {
+                const remaining = this.tokenExpiryTime - Date.now();
+                el.textContent = this.formatCountdown(remaining);
+            }
+        }, 1000);
+    }
+
+    stopCountdownTimer() {
+        if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+        }
+    }
+
     updateTokenStatusFromConnectionStatus(connectionStatus) {
         const tokenStatus = document.getElementById('tokenStatus');
         const fcmListener = connectionStatus.fcmListener;
@@ -836,7 +963,7 @@ class RustPlusProvider {
                     <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
                     <div>
                         <strong>FCM Tokens Invalid or Expired</strong><br>
-                        <small class="text-muted">Use the form below to update FCM tokens</small>
+                        <small class="text-muted">Use Fetch tokens below to sign in and store new tokens</small>
                     </div>
                 </div>
             `;
@@ -855,15 +982,13 @@ class RustPlusProvider {
             statusClass = 'token-status token-warning';
             statusIcon = 'bi-exclamation-triangle-fill text-warning';
             statusText = 'FCM Tokens Expire Soon';
-            const hoursLeft = Math.floor(tokenExpiry.timeUntilExpiry / (1000 * 60 * 60));
-            statusSubtext = `Expires in ${hoursLeft} hours`;
+            statusSubtext = `Expires in ${this.formatCountdown(tokenExpiry.timeUntilExpiry)}`;
         } else {
             statusClass = 'token-valid';
             statusIcon = 'bi-check-circle-fill text-success';
             statusText = 'FCM Token Valid';
-            const timeLeft = this.formatTimeUntilExpiry(tokenExpiry.timeUntilExpiry);
             const serverCount = connectionStatus.totalServers || 0;
-            statusSubtext = `Connected to ${serverCount} server(s) - token expiry in ${timeLeft}`;
+            statusSubtext = `Connected to ${serverCount} server(s)`;
         }
         
         tokenStatus.className = `token-status ${statusClass}`;

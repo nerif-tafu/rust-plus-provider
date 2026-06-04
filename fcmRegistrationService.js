@@ -1,4 +1,6 @@
 // fcmRegistrationService.js - Handles FCM registration with Selenium automation
+const fs = require('fs');
+const path = require('path');
 const { Builder, By, until } = require('selenium-webdriver');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
@@ -27,6 +29,14 @@ function isSteamLoginformUrl(url) {
 }
 
 /** When SELENIUM_HEADLESS is unset, empty, or invalid, default to headless (true). */
+function getChromeUserDataDir() {
+  const raw = process.env.CHROME_USER_DATA_DIR;
+  if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
+    return path.resolve(String(raw).trim());
+  }
+  return path.join(process.cwd(), '.chrome-steam-profile');
+}
+
 function isSeleniumHeadless() {
   const raw = process.env.SELENIUM_HEADLESS;
   if (raw === undefined || raw === null || String(raw).trim() === '') {
@@ -77,6 +87,8 @@ const STEAM_LOGIN_SUBMIT_LOCATORS = [
 const STEAM_OPENID_SIGN_IN_LOCATORS = [
   By.id('imageLogin'),
   By.css('input#imageLogin[type="submit"]'),
+  By.css('#openidForm input[type="submit"]'),
+  By.css('input.btn_green_white_innerfade[type="submit"]'),
   By.xpath('//form[@id="openidForm"]//input[@type="submit"]'),
   By.xpath('//input[@type="submit" and translate(@value, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")="sign in"]'),
 ];
@@ -377,12 +389,28 @@ class FcmRegistrationService {
     }
 
     return this.driver.executeScript(`
+      const text = (document.body && (document.body.innerText || '')).toLowerCase();
       return !!(
         document.querySelector('#imageLogin') ||
         document.querySelector('form#openidForm') ||
-        (document.body && document.body.innerText.includes('Sign into companion-rust.facepunch.com'))
+        text.includes('sign into companion-rust.facepunch.com')
       );
     `);
+  }
+
+  async waitForOpenIdConsentReady(timeoutMs = 20000) {
+    await this.driver.wait(async () => {
+      const url = await this.driver.getCurrentUrl();
+      if (!isSteamOpenIdConsentUrl(url)) {
+        return false;
+      }
+      return this.driver.executeScript(`
+        return !!(
+          document.querySelector('#imageLogin') ||
+          document.querySelector('form#openidForm')
+        );
+      `);
+    }, timeoutMs, 'Expected Steam OpenID consent Sign In button');
   }
 
   async hasRustPlusTokenInPage() {
@@ -443,27 +471,66 @@ class FcmRegistrationService {
 
   async clickOpenIdConsentSignIn() {
     console.log('Clicking OpenID consent Sign In button...');
-    const signInButton = await this.waitForFirstVisible(STEAM_OPENID_SIGN_IN_LOCATORS, 15000, 'OpenID Sign In');
-    await this.clickElement(signInButton);
+    this.sendProgress(3, 'Confirming Steam sign-in to Rust+...', 85);
+
+    await this.waitForOpenIdConsentReady(20000);
+    await this.driver.sleep(500);
+
+    const jsClicked = await this.driver.executeScript(`
+      const btn = document.querySelector('#imageLogin');
+      if (btn) {
+        btn.click();
+        return 'imageLogin';
+      }
+      const form = document.querySelector('#openidForm');
+      if (form) {
+        if (typeof form.requestSubmit === 'function') {
+          form.requestSubmit();
+        } else {
+          form.submit();
+        }
+        return 'openidForm';
+      }
+      return null;
+    `);
+    console.log('OpenID consent click via script:', jsClicked || 'none');
 
     try {
-      await this.waitForRustPlusTokenPage(25000);
-      return;
+      await this.driver.wait(async (driver) => {
+        const url = await driver.getCurrentUrl();
+        if (isRustPlusPageUrl(url)) {
+          return true;
+        }
+        return !isSteamOpenIdConsentUrl(url);
+      }, 20000, 'Expected redirect after OpenID Sign In');
     } catch (navigationError) {
       const url = await this.driver.getCurrentUrl();
       if (!isSteamOpenIdConsentUrl(url)) {
         throw navigationError;
       }
-      console.log('OpenID Sign In click did not redirect; submitting openidForm directly...');
+      console.log('Script click did not leave OpenID page; trying Selenium click...');
     }
 
-    await this.driver.executeScript(`
-      const form = document.querySelector('#openidForm');
-      if (form) {
-        form.submit();
-      }
-    `);
-    await this.waitForRustPlusTokenPage(25000);
+    if (isSteamOpenIdConsentUrl(await this.driver.getCurrentUrl())) {
+      const signInButton = await this.waitForFirstVisible(STEAM_OPENID_SIGN_IN_LOCATORS, 10000, 'OpenID Sign In');
+      await this.clickElement(signInButton);
+      await this.driver.sleep(1000);
+    }
+
+    if (isSteamOpenIdConsentUrl(await this.driver.getCurrentUrl())) {
+      await this.driver.executeScript(`
+        const form = document.querySelector('#openidForm');
+        if (form) {
+          if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+          } else {
+            form.submit();
+          }
+        }
+      `);
+    }
+
+    await this.waitForRustPlusTokenPage(45000);
   }
 
   async completePostAuthSteps() {
@@ -541,60 +608,110 @@ class FcmRegistrationService {
     );
   }
   
-  // Main method to register with FCM using Steam credentials
+  getChromeProfilePath() {
+    const profileDir = getChromeUserDataDir();
+    fs.mkdirSync(profileDir, { recursive: true });
+    this.userDataDir = profileDir;
+    return profileDir;
+  }
+
+  async createChromeDriver() {
+    const chrome = require('selenium-webdriver/chrome');
+    const options = new chrome.Options();
+    const headless = isSeleniumHeadless();
+    const profileDir = this.getChromeProfilePath();
+
+    if (headless) {
+      options.addArguments('--headless=new');
+    }
+    options.addArguments(`--user-data-dir=${profileDir}`);
+    options.addArguments('--no-sandbox');
+    options.addArguments('--disable-dev-shm-usage');
+    options.addArguments('--disable-gpu');
+    options.addArguments('--no-first-run');
+    options.addArguments('--disable-default-apps');
+
+    console.log('Using Chrome profile:', profileDir);
+    this.driver = await new Builder().forBrowser('chrome').setChromeOptions(options).build();
+
+    await this.driver.manage().setTimeouts({
+      implicit: 10000,
+      pageLoad: 30000,
+      script: 30000,
+    });
+    await this.driver.manage().window().setRect({ width: 1686, height: 880 });
+  }
+
+  wrapRegistrationError(error) {
+    if (error.message.includes('SessionNotCreatedError')) {
+      const os = require('os');
+      const isWindows = os.platform() === 'win32';
+      if (isWindows) {
+        throw new Error(
+          'FCM registration failed: Chrome session could not be created on Windows. Please ensure Chrome is properly installed and try again.'
+        );
+      }
+      throw new Error(
+        'FCM registration failed: Chrome session could not be created. Please try again later.'
+      );
+    }
+    throw error;
+  }
+
+  async runTokenRegistrationPipeline(getRustplusAuthToken) {
+    console.log('Starting FCM registration process...');
+    this.sendProgress(1, 'Starting FCM registration process...', 0);
+
+    this.sendProgress(1, 'Obtaining FCM credentials...', 10);
+    const fcmCredentials = await this.getFcmCredentials();
+    console.log('FCM credentials obtained');
+    this.sendProgress(1, 'FCM credentials obtained', 20);
+
+    this.sendProgress(2, 'Getting Expo push token...', 30);
+    const expoPushToken = await this.getExpoPushToken(fcmCredentials.fcm.token);
+    console.log('Expo push token obtained');
+    this.sendProgress(2, 'Expo push token obtained', 40);
+
+    this.sendProgress(3, 'Refreshing Rust+ auth token via Steam...', 50);
+    const rustplusAuthToken = await getRustplusAuthToken();
+    console.log('Rust+ auth token obtained');
+    this.sendProgress(3, 'Rust+ auth token obtained', 80);
+
+    this.sendProgress(4, 'Registering with Rust+ API...', 90);
+    await this.registerWithRustPlus(rustplusAuthToken, expoPushToken);
+    console.log('Successfully registered with Rust+ API');
+    this.sendProgress(4, 'Successfully registered with Rust+ API', 100);
+
+    return {
+      fcm_credentials: fcmCredentials,
+      expo_push_token: expoPushToken,
+      rustplus_auth_token: rustplusAuthToken,
+    };
+  }
+
+  // Initial registration: Steam credentials establish the persistent Chrome profile.
   async registerWithSteamCredentials(username, password) {
     try {
-      console.log('Starting FCM registration process...');
-      this.sendProgress(1, 'Starting FCM registration process...', 0);
-      
-      // Step 1: Get FCM credentials
-      this.sendProgress(1, 'Obtaining FCM credentials...', 10);
-      const fcmCredentials = await this.getFcmCredentials();
-      console.log('FCM credentials obtained');
-      this.sendProgress(1, 'FCM credentials obtained', 20);
-      
-      // Step 2: Get Expo push token
-      this.sendProgress(2, 'Getting Expo push token...', 30);
-      const expoPushToken = await this.getExpoPushToken(fcmCredentials.fcm.token);
-      console.log('Expo push token obtained');
-      this.sendProgress(2, 'Expo push token obtained', 40);
-      
-      // Step 3: Get Rust+ auth token using Selenium
-      this.sendProgress(3, 'Starting Steam login process...', 50);
-      const rustplusAuthToken = await this.getRustplusAuthToken(username, password);
-      console.log('Rust+ auth token obtained');
-      this.sendProgress(3, 'Rust+ auth token obtained', 80);
-      
-      // Step 4: Register with Rust+ API
-      this.sendProgress(4, 'Registering with Rust+ API...', 90);
-      await this.registerWithRustPlus(rustplusAuthToken, expoPushToken);
-      console.log('Successfully registered with Rust+ API');
-      this.sendProgress(4, 'Successfully registered with Rust+ API', 100);
-      
-      return {
-        fcm_credentials: fcmCredentials,
-        expo_push_token: expoPushToken,
-        rustplus_auth_token: rustplusAuthToken
-      };
-      
+      return await this.runTokenRegistrationPipeline(() =>
+        this.getRustplusAuthToken(username, password, false)
+      );
     } catch (error) {
       console.error('FCM registration failed:', error);
-      
-      // Don't crash the service for FCM registration errors
-      if (error.message.includes('SessionNotCreatedError')) {
-        const os = require('os');
-        const isWindows = os.platform() === 'win32';
-        
-        if (isWindows) {
-          console.error('Chrome session creation failed on Windows - this may be due to Chrome compatibility issues or system resource constraints');
-          throw new Error('FCM registration failed: Chrome session could not be created on Windows. Please ensure Chrome is properly installed and try again.');
-        } else {
-          console.error('Chrome session creation failed - this may be due to system resource constraints');
-          throw new Error('FCM registration failed: Chrome session could not be created. Please try again later.');
-        }
-      }
-      
-      throw error;
+      this.wrapRegistrationError(error);
+    } finally {
+      await this.cleanup();
+    }
+  }
+
+  // Renewal using saved Chrome profile (no username/password).
+  async registerWithChromeProfile() {
+    try {
+      return await this.runTokenRegistrationPipeline(() =>
+        this.getRustplusAuthToken(null, null, true)
+      );
+    } catch (error) {
+      console.error('FCM profile refresh failed:', error);
+      this.wrapRegistrationError(error);
     } finally {
       await this.cleanup();
     }
@@ -640,125 +757,119 @@ class FcmRegistrationService {
     return response.data.data.expoPushToken;
   }
   
-  // Gets Rust+ auth token using Selenium automation
-  async getRustplusAuthToken(username, password) {
-    
+  async needsSteamCredentialLogin() {
+    const url = await this.driver.getCurrentUrl();
+    if (isSteamOpenIdConsentUrl(url) || isRustPlusPageUrl(url)) {
+      return false;
+    }
+    if (await this.isOpenIdConsentPage()) {
+      return false;
+    }
     try {
-      this.sendProgress(3, 'Initializing browser...', 50);
-      
-      
-      // Initialize Chrome driver with minimal required options
-      const chrome = require('selenium-webdriver/chrome');
-      const options = new chrome.Options();
-      const headless = isSeleniumHeadless();
+      await this.resolveSteamLoginFields();
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
-      if (headless) {
-        options.addArguments('--headless=new');
-      }
-      options.addArguments('--no-sandbox');
-      options.addArguments('--disable-dev-shm-usage');
-      options.addArguments('--disable-gpu');
-      options.addArguments('--disable-web-security');
-      options.addArguments('--disable-extensions');
-      options.addArguments('--no-first-run');
-      options.addArguments('--disable-default-apps');
-      
-      this.driver = new Builder()
-        .forBrowser('chrome')
-        .setChromeOptions(options)
-        .build();
-      
-      // Set timeouts for better reliability
-      await this.driver.manage().setTimeouts({
-        implicit: 10000,    // 10 seconds for element finding
-        pageLoad: 30000,   // 30 seconds for page loading
-        script: 30000      // 30 seconds for script execution
-      });
-      
-      // Set window size as shown in the Selenium test
-      await this.driver.manage().window().setRect({ width: 1686, height: 880 });
-      
-      this.sendProgress(3, 'Navigating to Rust+ login page...', 55);
-      // Navigate to Rust+ login page
-      await this.driver.get('https://companion-rust.facepunch.com/login');
-      
-      this.sendProgress(3, 'Clicking Steam login button...', 60);
-      // Wait for page to load and click the span element (Steam login button)
-      const steamButton = await this.driver.wait(
-        until.elementLocated(By.css('span')),
-        10000
-      );
-      await steamButton.click();
-      
-      this.sendProgress(3, 'Waiting for Steam login page...', 65);
-      await this.waitForSteamLoginPage();
+  async navigateToSteamFromRustPlus() {
+    this.sendProgress(3, 'Initializing browser...', 50);
+    await this.createChromeDriver();
 
-      this.sendProgress(3, 'Entering Steam credentials...', 70);
-      const { usernameField, passwordField, signInButton } = await this.resolveSteamLoginFields();
+    this.sendProgress(3, 'Navigating to Rust+ login page...', 55);
+    await this.driver.get('https://companion-rust.facepunch.com/login');
 
-      await this.fillInputValue(usernameField, username);
-      await this.fillInputValue(passwordField, password);
-      await this.clickElement(signInButton);
+    this.sendProgress(3, 'Clicking Steam login button...', 60);
+    const steamButton = await this.driver.wait(until.elementLocated(By.css('span')), 10000);
+    await steamButton.click();
 
-      await this.checkSteamLoginErrors();
-
-      // After submit: openid/loginform -> store.steampowered.com/login (2FA) or openid consent
-      await this.driver.wait(async (driver) => {
-        const url = await driver.getCurrentUrl();
-        if (isRustPlusPageUrl(url)) return true;
-        if (/store\.steampowered\.com\/login/i.test(url)) return true;
-        if (/\/openid\/login(?!form)/i.test(url)) return true;
-        try {
-          return !!(await driver.executeScript(`
-            return !!(
-              document.querySelector('#twofactorcode_entry, .twofactorauthcode_entry_input') ||
-              (document.body && document.body.innerText.toLowerCase().includes('steam mobile app'))
-            );
-          `));
-        } catch {
-          return false;
-        }
-      }, 20000, 'Expected Steam 2FA or authorization page after credentials');
-
-      // Check if Steam is asking for 2FA BEFORE trying to click final sign-in button
+    await this.driver.wait(async (driver) => {
+      const url = await driver.getCurrentUrl();
+      if (isRustPlusPageUrl(url)) return true;
+      if (isSteamOpenIdConsentUrl(url)) return true;
+      if (isSteamLoginformUrl(url)) return true;
+      if (/store\.steampowered\.com\/login/i.test(url)) return true;
       try {
-        const needsTwoFactor =
-          /store\.steampowered\.com\/login/i.test(await this.driver.getCurrentUrl()) ||
-          (await this.hasSteamMobileVerificationSignals());
-
-        if (!needsTwoFactor) {
-          throw new Error('No 2FA prompt detected');
-        }
-
-        console.log('Steam Mobile approval required...');
-        await this.handleTwoFactor();
-        console.log('Steam Mobile approval completed, continuing with normal flow...');
-        this.sendProgress(3, 'Steam Mobile approval completed', 80);
-        await this.completePostAuthSteps();
-      } catch (error) {
-        // If element is not found within 3 seconds, assume no 2FA required
-        if (
-          error.message.includes('Steam Mobile App approval') ||
-          error.message.includes('Steam account requires')
-        ) {
-          throw error;
-        }
-        if (error.message.includes('Steam login did not complete')) {
-          throw error;
-        }
-        // Otherwise, continue with normal flow (no 2FA required)
-        console.log('No 2FA required, continuing with normal flow...');
-        await this.completePostAuthSteps();
+        return await this.needsSteamCredentialLogin();
+      } catch {
+        return false;
       }
-      
-      let currentUrl = await this.driver.getCurrentUrl();
-      console.log('Current URL after login:', currentUrl);
+    }, 30000, 'Expected Steam authorization or login page');
+  }
 
-      if (!(await this.isRustPlusTokenPage())) {
-        await this.completePostAuthSteps();
+  async submitSteamCredentials(username, password) {
+    this.sendProgress(3, 'Waiting for Steam login page...', 65);
+    await this.waitForSteamLoginPage();
+
+    this.sendProgress(3, 'Entering Steam credentials...', 70);
+    const { usernameField, passwordField, signInButton } = await this.resolveSteamLoginFields();
+    await this.fillInputValue(usernameField, username);
+    await this.fillInputValue(passwordField, password);
+    await this.clickElement(signInButton);
+    await this.checkSteamLoginErrors();
+
+    await this.driver.wait(async (driver) => {
+      const url = await driver.getCurrentUrl();
+      if (isRustPlusPageUrl(url)) return true;
+      if (/store\.steampowered\.com\/login/i.test(url)) return true;
+      if (/\/openid\/login(?!form)/i.test(url)) return true;
+      try {
+        return !!(await driver.executeScript(`
+          return !!(
+            document.querySelector('#twofactorcode_entry, .twofactorauthcode_entry_input') ||
+            (document.body && document.body.innerText.toLowerCase().includes('steam mobile app'))
+          );
+        `));
+      } catch {
+        return false;
+      }
+    }, 20000, 'Expected Steam 2FA or authorization page after credentials');
+  }
+
+  async handleSteamGuardIfNeeded() {
+    try {
+      const needsTwoFactor =
+        /store\.steampowered\.com\/login/i.test(await this.driver.getCurrentUrl()) ||
+        (await this.hasSteamMobileVerificationSignals());
+
+      if (!needsTwoFactor) {
+        throw new Error('No 2FA prompt detected');
       }
 
-      await this.waitForRustPlusTokenPage(45000);
+      console.log('Steam Mobile approval required...');
+      await this.handleTwoFactor();
+      console.log('Steam Mobile approval completed, continuing with normal flow...');
+      this.sendProgress(3, 'Steam Mobile approval completed', 80);
+      await this.completePostAuthSteps();
+    } catch (error) {
+      if (
+        error.message.includes('Steam Mobile App approval') ||
+        error.message.includes('Steam account requires') ||
+        error.message.includes('Timed out waiting for the Steam Mobile App approval screen')
+      ) {
+        throw error;
+      }
+      if (error.message.includes('Steam login did not complete')) {
+        throw error;
+      }
+      console.log('No 2FA required, continuing with normal flow...');
+      await this.completePostAuthSteps();
+    }
+  }
+
+  async finishRustPlusAuthFlow() {
+    const urlBeforeFinish = await this.driver.getCurrentUrl();
+    if (isSteamOpenIdConsentUrl(urlBeforeFinish) || (await this.isOpenIdConsentPage())) {
+      await this.clickOpenIdConsentSignIn();
+    } else if (!(await this.isRustPlusTokenPage())) {
+      await this.completePostAuthSteps();
+    }
+
+    let currentUrl = await this.driver.getCurrentUrl();
+    console.log('Current URL after Steam auth:', currentUrl);
+
+    await this.waitForRustPlusTokenPage(45000);
       
       // Handle any alerts that might appear
       await this.handleAlertIfPresent();
@@ -820,7 +931,37 @@ class FcmRegistrationService {
         }
       
       throw new Error('Could not extract Rust+ auth token');
-      
+  }
+
+  // Gets Rust+ auth token using Selenium (persistent Chrome profile).
+  async getRustplusAuthToken(username, password, profileOnly = false) {
+    try {
+      await this.navigateToSteamFromRustPlus();
+
+      const needsLogin = await this.needsSteamCredentialLogin();
+      if (needsLogin) {
+        if (profileOnly) {
+          throw new Error(
+            'Steam session expired in the saved Chrome profile. Delete tokens and use Fetch tokens with your Steam username and password to sign in again.'
+          );
+        }
+        if (!username || !password) {
+          throw new Error('Steam username and password are required to sign in.');
+        }
+        await this.submitSteamCredentials(username, password);
+        await this.handleSteamGuardIfNeeded();
+      } else {
+        console.log('Using existing Steam session from Chrome profile');
+        this.sendProgress(3, 'Using saved Steam session...', 72);
+        const currentUrl = await this.driver.getCurrentUrl();
+        if (isSteamOpenIdConsentUrl(currentUrl) || (await this.isOpenIdConsentPage())) {
+          await this.clickOpenIdConsentSignIn();
+        } else {
+          await this.completePostAuthSteps();
+        }
+      }
+
+      return await this.finishRustPlusAuthFlow();
     } catch (error) {
       console.error('Error getting Rust+ auth token:', error);
       throw error;

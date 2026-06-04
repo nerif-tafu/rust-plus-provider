@@ -40,22 +40,50 @@ class JsonManager {
       expo_push_token: null,
       rustplus_auth_token: null,
       token_expiry: null,
+      last_token_refresh: null,
+      last_auto_token_refresh: null,
       servers: {}
     };
   }
+
+  getTokenExpiryDays() {
+    const raw = process.env.TOKEN_EXPIRY_DAYS;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 14;
+  }
   
   // Updates FCM credentials and tokens
-  updateTokens(fcmCredentials, expoPushToken, rustplusAuthToken) {
+  updateTokens(fcmCredentials, expoPushToken, rustplusAuthToken, { isAutoRefresh = false } = {}) {
     const config = this.readConfig();
     const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 14); // 2 weeks from now
+    expiryDate.setDate(expiryDate.getDate() + this.getTokenExpiryDays());
+    const now = Date.now();
     
     config.fcm_credentials = fcmCredentials;
     config.expo_push_token = expoPushToken;
     config.rustplus_auth_token = rustplusAuthToken;
     config.token_expiry = expiryDate.getTime();
+    config.last_token_refresh = now;
+    if (isAutoRefresh) {
+      config.last_auto_token_refresh = now;
+    }
     
     return this.writeConfig(config);
+  }
+
+  getLastAutoTokenRefresh() {
+    const config = this.readConfig();
+    return config.last_auto_token_refresh || null;
+  }
+
+  hasStoredTokens() {
+    const config = this.readConfig();
+    return !!(config.fcm_credentials && config.expo_push_token && config.rustplus_auth_token);
+  }
+
+  getLastTokenRefresh() {
+    const config = this.readConfig();
+    return config.last_token_refresh || null;
   }
   
   // Adds a new server to the configuration
@@ -125,6 +153,8 @@ class JsonManager {
       config.expo_push_token = null;
       config.rustplus_auth_token = null;
       config.token_expiry = null;
+      config.last_token_refresh = null;
+      config.last_auto_token_refresh = null;
       
       // Keep servers intact
       // config.servers remains unchanged

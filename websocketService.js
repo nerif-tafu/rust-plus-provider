@@ -35,7 +35,53 @@ class WebSocketService {
     
     // Initialize FCM listening if we have valid tokens
     this.initializeFcmListening();
+
+    this.tokenRefreshInProgress = false;
+    this.backfillLastTokenRefreshIfMissing();
+    this.startTokenAutoRefreshScheduler();
    }
+
+  backfillLastTokenRefreshIfMissing() {
+    if (this.jsonManager.areTokensValid() && !this.jsonManager.getLastTokenRefresh()) {
+      const config = this.jsonManager.readConfig();
+      config.last_token_refresh = Date.now();
+      this.jsonManager.writeConfig(config);
+      console.log('Backfilled last_token_refresh for existing valid tokens');
+    }
+  }
+
+  getAutoRefreshIntervalDays() {
+    const raw = process.env.TOKEN_AUTO_REFRESH_DAYS;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 5;
+  }
+
+  isAutoRefreshDue() {
+    if (!this.jsonManager.areTokensValid()) {
+      return false;
+    }
+    const lastAutoRefresh = this.jsonManager.getLastAutoTokenRefresh();
+    const lastRefresh = lastAutoRefresh || this.jsonManager.getLastTokenRefresh();
+    if (!lastRefresh) {
+      return true;
+    }
+    const intervalMs = this.getAutoRefreshIntervalDays() * 24 * 60 * 60 * 1000;
+    return Date.now() - lastRefresh >= intervalMs;
+  }
+
+  startTokenAutoRefreshScheduler() {
+    const oneHourMs = 60 * 60 * 1000;
+    setTimeout(() => this.maybeRunAutoTokenRefresh(), 15000);
+    setInterval(() => this.maybeRunAutoTokenRefresh(), oneHourMs);
+  }
+
+  async maybeRunAutoTokenRefresh() {
+    if (this.tokenRefreshInProgress || !this.isAutoRefreshDue()) {
+      return;
+    }
+    console.log('Scheduled FCM token auto-refresh is due');
+    await this.performTokenRefresh(null, { profileOnly: true, isAutoRefresh: true });
+  }
    
   // Initializes connections to existing servers on startup
   async initializeConnections() {
@@ -129,6 +175,9 @@ class WebSocketService {
       switch (message.type) {
         case 'fcm_register':
           this.handleFcmRegister(clientId, message.data);
+          break;
+        case 'fcm_refresh_tokens':
+          this.handleFcmRefreshTokens(clientId);
           break;
         case 'register_server':
           this.handleRegisterServer(clientId, message.data);
@@ -564,7 +613,11 @@ class WebSocketService {
           fcmListener: {
             isRunning: this.fcmPairingService.isRunning(),
             hasValidTokens: this.jsonManager.areTokensValid(),
-            tokenExpiry: this.getTokenExpiryInfo()
+            hasStoredTokens: this.jsonManager.hasStoredTokens(),
+            tokenExpiry: this.getTokenExpiryInfo(),
+            tokenRefresh: this.getTokenRefreshInfo(),
+            autoRefreshIntervalDays: this.getAutoRefreshIntervalDays(),
+            tokenRefreshInProgress: this.tokenRefreshInProgress
           }
         }
       });
@@ -845,120 +898,132 @@ class WebSocketService {
   }
   
   
-  // Handles FCM registration with Steam credentials
-  async handleFcmRegister(clientId, data) {
+  setTokenRefreshProgressCallback(clientId) {
+    this.fcmRegistrationService.setProgressCallback((progress) => {
+      const message = { type: 'fcm_registration_progress', data: progress };
+      if (clientId) {
+        this.sendToClient(clientId, message);
+      } else {
+        this.broadcastToAllClients(message);
+      }
+    });
+  }
+
+  async applyRefreshedTokens(clientId, { isAutoRefresh = false } = {}) {
+    const savedEntityStates = new Map();
+    for (const [serverId, rustProvider] of this.rustProviders) {
+      if (rustProvider.entityStates) {
+        savedEntityStates.set(serverId, new Map(rustProvider.entityStates));
+      }
+    }
+
     try {
-      // Validate required fields
-      if (!data.username || !data.password) {
-        this.sendError(clientId, 'Username and password are required');
-        return;
-      }
-      
-      console.log(`Starting FCM registration for client ${clientId}`);
-      
-      // Check if tokens are still valid
-      if (this.jsonManager.areTokensValid()) {
-        console.log('Valid tokens already exist, skipping registration');
-        
-        // Ensure FCM listening is started if not already running
-        if (!this.fcmPairingService.isRunning()) {
-          try {
-            const fcmCredentials = this.jsonManager.getFcmCredentials();
-            await this.fcmPairingService.startListening(fcmCredentials);
-            console.log('FCM listener started with existing tokens');
-          } catch (fcmError) {
-            console.error('Error starting FCM listener with existing tokens:', fcmError);
-          }
+      await this.disconnectFromAllServers();
+      await this.connectToAllServers();
+
+      for (const [serverId, entityStates] of savedEntityStates) {
+        const rustProvider = this.rustProviders.get(serverId);
+        if (rustProvider && entityStates) {
+          rustProvider.entityStates = new Map(entityStates);
         }
-        
-        this.sendToClient(clientId, {
-          type: 'fcm_register_success',
-          data: {
-            message: 'Valid tokens already exist',
-            tokens_exist: true
-          }
-        });
-        await this.handleGetConnectionStatus(clientId);
-        return;
       }
-      
-      // Set up progress callback for real-time updates
-      this.fcmRegistrationService.setProgressCallback((progress) => {
-        this.sendToClient(clientId, {
-          type: 'fcm_registration_progress',
-          data: progress
-        });
-      });
-      
-      // Perform FCM registration
-      const tokens = await this.fcmRegistrationService.registerWithSteamCredentials(
-        data.username,
-        data.password
-      );
-      
-      // Save tokens to JSON file
+    } catch (reconnectError) {
+      console.error('Error reconnecting servers after token refresh:', reconnectError);
+    }
+
+    try {
+      const fcmCredentials = this.jsonManager.getFcmCredentials();
+      await this.fcmPairingService.startListening(fcmCredentials);
+      console.log('FCM listener started with refreshed tokens');
+    } catch (fcmError) {
+      console.error('Error starting FCM listener with refreshed tokens:', fcmError);
+    }
+
+    const successPayload = {
+      message: isAutoRefresh
+        ? 'FCM tokens auto-refreshed successfully'
+        : 'FCM tokens refreshed successfully',
+      is_auto_refresh: isAutoRefresh,
+      token_expiry: this.jsonManager.readConfig().token_expiry,
+      last_token_refresh: this.jsonManager.getLastTokenRefresh(),
+    };
+
+    if (clientId) {
+      this.sendToClient(clientId, { type: 'fcm_register_success', data: successPayload });
+      await this.handleGetConnectionStatus(clientId);
+    }
+
+    this.broadcastToAllClients({ type: 'fcm_register_success', data: successPayload });
+    for (const [connectedClientId] of this.clients) {
+      await this.handleGetConnectionStatus(connectedClientId);
+    }
+  }
+
+  async performTokenRefresh(clientId, { username, password, profileOnly, isAutoRefresh = false }) {
+    if (this.tokenRefreshInProgress) {
+      if (clientId) {
+        this.sendError(clientId, 'Token refresh already in progress');
+      }
+      return;
+    }
+
+    this.tokenRefreshInProgress = true;
+    try {
+      const label = isAutoRefresh ? 'auto-refresh' : profileOnly ? 'profile refresh' : 'registration';
+      console.log(`Starting FCM token ${label}${clientId ? ` for client ${clientId}` : ''}`);
+
+      this.setTokenRefreshProgressCallback(clientId);
+
+      const tokens = profileOnly
+        ? await this.fcmRegistrationService.registerWithChromeProfile()
+        : await this.fcmRegistrationService.registerWithSteamCredentials(username, password);
+
       const success = this.jsonManager.updateTokens(
         tokens.fcm_credentials,
         tokens.expo_push_token,
-        tokens.rustplus_auth_token
+        tokens.rustplus_auth_token,
+        { isAutoRefresh }
       );
-      
-       if (success) {
-         console.log('FCM registration completed successfully');
-         
-         // Save entity states before reconnecting
-         const savedEntityStates = new Map();
-         for (const [serverId, rustProvider] of this.rustProviders) {
-           if (rustProvider.entityStates) {
-             savedEntityStates.set(serverId, new Map(rustProvider.entityStates));
-           }
-         }
-         
-         // Reconnect to all servers with new tokens
-         try {
-           await this.disconnectFromAllServers();
-           await this.connectToAllServers();
-           
-           // Restore entity states to new instances
-           for (const [serverId, entityStates] of savedEntityStates) {
-             const rustProvider = this.rustProviders.get(serverId);
-             if (rustProvider && entityStates) {
-               rustProvider.entityStates = new Map(entityStates);
-               console.log(`Restored entity states for server ${serverId}:`, Array.from(entityStates.entries()));
-             }
-           }
-         } catch (reconnectError) {
-           console.error('Error reconnecting servers after token refresh:', reconnectError);
-           // Continue with success response even if reconnection fails
-         }
-         
-         // Start FCM listening with new tokens
-         try {
-           const fcmCredentials = this.jsonManager.getFcmCredentials();
-           await this.fcmPairingService.startListening(fcmCredentials);
-           console.log('FCM listener started with new tokens');
-         } catch (fcmError) {
-           console.error('Error starting FCM listener with new tokens:', fcmError);
-           // Continue with success response even if FCM listener fails
-         }
-         
-         this.sendToClient(clientId, {
-           type: 'fcm_register_success',
-           data: {
-             message: 'FCM registration completed successfully',
-             tokens_exist: false,
-             token_expiry: this.jsonManager.readConfig().token_expiry
-           }
-         });
-         await this.handleGetConnectionStatus(clientId);
-       } else {
-         this.sendError(clientId, 'Failed to save tokens to configuration file');
-       }
-      
+
+      if (!success) {
+        if (clientId) {
+          this.sendError(clientId, 'Failed to save tokens to configuration file');
+        }
+        return;
+      }
+
+      console.log(`FCM token ${label} completed successfully`);
+      await this.applyRefreshedTokens(clientId, { isAutoRefresh });
     } catch (error) {
-      console.error('FCM registration error:', error);
-      this.sendError(clientId, `FCM registration failed: ${error.message}`);
+      console.error('FCM token refresh error:', error);
+      if (clientId) {
+        this.sendError(clientId, `FCM token refresh failed: ${error.message}`);
+      }
+    } finally {
+      this.tokenRefreshInProgress = false;
     }
+  }
+
+  // Initial token fetch: requires Steam credentials (establishes Chrome profile).
+  async handleFcmRegister(clientId, data) {
+    if (!data?.username || !data?.password) {
+      this.sendError(clientId, 'Username and password are required');
+      return;
+    }
+    await this.performTokenRefresh(clientId, {
+      username: data.username,
+      password: data.password,
+      profileOnly: false,
+    });
+  }
+
+  // Manual or scheduled refresh using saved Chrome profile (no credentials).
+  async handleFcmRefreshTokens(clientId) {
+    if (!this.jsonManager.hasStoredTokens()) {
+      this.sendError(clientId, 'No tokens stored. Use Fetch tokens with your Steam credentials first.');
+      return;
+    }
+    await this.performTokenRefresh(clientId, { profileOnly: true });
   }
   
   
@@ -1098,6 +1163,24 @@ class WebSocketService {
     }
   }
   
+  getTokenRefreshInfo() {
+    const lastRefresh = this.jsonManager.getLastTokenRefresh();
+    const lastAutoRefresh = this.jsonManager.getLastAutoTokenRefresh();
+    const intervalMs = this.getAutoRefreshIntervalDays() * 24 * 60 * 60 * 1000;
+    const autoBaseline = lastAutoRefresh || lastRefresh;
+    const nextAutoRefreshAt = autoBaseline ? autoBaseline + intervalMs : null;
+
+    return {
+      lastRefresh,
+      lastRefreshDate: lastRefresh ? new Date(lastRefresh).toISOString() : null,
+      lastAutoRefresh,
+      lastAutoRefreshDate: lastAutoRefresh ? new Date(lastAutoRefresh).toISOString() : null,
+      nextAutoRefreshAt,
+      nextAutoRefreshDate: nextAutoRefreshAt ? new Date(nextAutoRefreshAt).toISOString() : null,
+      isAutoRefreshDue: this.isAutoRefreshDue(),
+    };
+  }
+
   // Gets detailed token expiry information
   getTokenExpiryInfo() {
     const config = this.jsonManager.readConfig();
