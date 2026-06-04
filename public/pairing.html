@@ -65,19 +65,18 @@
                             <div class="card-body">
                                 <form id="tokenForm">
                                     <div class="row">
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <label for="username" class="form-label">Steam Username</label>
                                             <input type="text" class="form-control" id="username" required>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <label for="password" class="form-label">Steam Password</label>
                                             <input type="password" class="form-control" id="password" required>
                                         </div>
-                                        <div class="col-md-4">
-                                            <label for="twoFactor" class="form-label">2FA Code (Optional)</label>
-                                            <input type="text" class="form-control" id="twoFactor" placeholder="Leave empty if no 2FA">
-                                        </div>
                                     </div>
+                                    <p class="form-text text-muted mt-2 mb-0">
+                                        When Steam asks for verification, approve the sign-in in your Steam Mobile App.
+                                    </p>
                                     <div class="mt-3">
                                         <button type="submit" class="btn btn-primary">
                                             <i class="bi bi-arrow-clockwise"></i> Update FCM Tokens

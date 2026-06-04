@@ -83,7 +83,13 @@ class RustPlusProvider {
                 
             case 'servers_list':
                 this.displayServers(message.data.servers);
-                this.updateTokenStatus(message.data.servers);
+                // Server list alone cannot indicate token validity (tokens may exist with 0 paired servers)
+                const hasServers = message.data.servers && Object.keys(message.data.servers).length > 0;
+                if (hasServers) {
+                    this.updateTokenStatus(message.data.servers);
+                } else {
+                    this.getConnectionStatus();
+                }
                 window.navigationManager.handleMessage(message);
                 
                 // Update border colors after a short delay to ensure rustProvider is ready
@@ -180,8 +186,10 @@ class RustPlusProvider {
                 
             case 'fcm_register_success':
                 this.addLiveEvent('FCM Registration', message.data.message);
+                this.clearFCMErrors();
                 this.hideRegistrationProgress();
-                // Refresh all data to show updated state
+                this.hideLoading();
+                this.getConnectionStatus();
                 this.loadServers();
                 break;
                 
@@ -197,7 +205,7 @@ class RustPlusProvider {
                 
             case 'tokens_deleted':
                 this.addLiveEvent('Tokens Deleted', message.data.message);
-                // Refresh all data to show updated state
+                this.getConnectionStatus();
                 this.loadServers();
                 break;
                 
@@ -253,8 +261,14 @@ class RustPlusProvider {
                     errorMessage === 'Server not found or not connected') {
                     console.warn('Server connection issue:', errorMessage);
                     this.showServerNotConnectedNotification();
-                } else if (errorMessage.includes('Incorrect 2FA code')) {
-                    this.showFCMError('2FA Code Error', 'The 2FA code you entered is incorrect. Please check your authenticator app and try again.');
+                } else if (
+                    errorMessage.includes('Steam Mobile App approval') ||
+                    errorMessage.includes('Timed out waiting for Steam Mobile App')
+                ) {
+                    this.showFCMError(
+                        'Steam Mobile Approval',
+                        'Approve the sign-in request in your Steam Mobile App, then try again.'
+                    );
                 } else if (errorMessage.includes('Invalid username or password')) {
                     this.showFCMError('Login Error', 'Invalid Steam username or password. Please check your credentials and try again.');
                 } else if (errorMessage.includes('Too Many Retries')) {
@@ -285,9 +299,7 @@ class RustPlusProvider {
     }
 
     loadTokenStatus() {
-        // Check if we have valid tokens by looking at the servers response
-        // This is a simplified approach - in a real app you'd have a dedicated endpoint
-        this.sendMessage({ type: 'get_servers' });
+        this.getConnectionStatus();
     }
 
     getConnectionStatus() {
@@ -303,7 +315,6 @@ class RustPlusProvider {
     updateTokens() {
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
-        const twoFactor = document.getElementById('twoFactor').value;
 
         if (!username || !password) {
             this.showError('Username and password are required');
@@ -319,8 +330,7 @@ class RustPlusProvider {
             type: 'fcm_register',
             data: {
                 username: username,
-                password: password,
-                twoFactor: twoFactor || null
+                password: password
             }
         });
     }
@@ -797,16 +807,7 @@ class RustPlusProvider {
         const hasServers = servers && Object.keys(servers).length > 0;
         
         if (!hasServers) {
-            tokenStatus.className = 'token-status token-invalid';
-            tokenStatus.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
-                    <div>
-                        <strong>No FCM Tokens or Servers</strong><br>
-                        <small class="text-muted">Use the form below to set up FCM tokens</small>
-                    </div>
-                </div>
-            `;
+            this.getConnectionStatus();
             return;
         }
 

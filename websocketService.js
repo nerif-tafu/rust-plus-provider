@@ -878,6 +878,7 @@ class WebSocketService {
             tokens_exist: true
           }
         });
+        await this.handleGetConnectionStatus(clientId);
         return;
       }
       
@@ -892,8 +893,7 @@ class WebSocketService {
       // Perform FCM registration
       const tokens = await this.fcmRegistrationService.registerWithSteamCredentials(
         data.username,
-        data.password,
-        data.twoFactor
+        data.password
       );
       
       // Save tokens to JSON file
@@ -950,6 +950,7 @@ class WebSocketService {
              token_expiry: this.jsonManager.readConfig().token_expiry
            }
          });
+         await this.handleGetConnectionStatus(clientId);
        } else {
          this.sendError(clientId, 'Failed to save tokens to configuration file');
        }
