@@ -1115,7 +1115,10 @@ class RustPlusProvider {
     }
     
     showRegistrationProgress() {
-        const form = document.getElementById('tokenForm');
+        const anchor = document.querySelector('#fcmTokenSection .card-body')
+            || document.getElementById('fcmTokenSection');
+        if (!anchor) return;
+
         const progressHtml = `
             <div id="registrationProgress" class="mt-3 p-3 bg-light rounded">
                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -1130,7 +1133,7 @@ class RustPlusProvider {
                 <div id="progressText" class="text-muted small">Starting registration process...</div>
             </div>
         `;
-        form.insertAdjacentHTML('afterend', progressHtml);
+        anchor.insertAdjacentHTML('beforeend', progressHtml);
     }
     
     showRegistrationError(errorTitle, errorMessage) {
