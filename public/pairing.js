@@ -509,20 +509,31 @@ class RustPlusProvider {
         const icon = this.getEventIcon(type);
         const color = this.getEventColor(type);
         
-        const eventHtml = `
-            <div class="border-bottom pb-2 mb-2 fade-in" style="border-left: 3px solid ${color}; padding-left: 10px;">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center">
-                        <i class="bi ${icon} me-2" style="color: ${color};"></i>
-                        <strong>${type}</strong>
-                    </div>
-                    <small class="text-muted">${timestamp}</small>
-                </div>
-                <div class="mt-1">${message}</div>
-            </div>
-        `;
-        
-        container.insertAdjacentHTML('afterbegin', eventHtml);
+        // Built as nodes rather than an HTML string: `type` and `message` carry
+        // server-supplied text and must not be parsed as markup.
+        const iconEl = createEl('i', { className: `bi ${icon} me-2` });
+        iconEl.style.color = color;
+
+        const eventNode = createEl('div', {
+            className: 'border-bottom pb-2 mb-2 fade-in',
+            children: [
+                createEl('div', {
+                    className: 'd-flex justify-content-between align-items-center',
+                    children: [
+                        createEl('div', {
+                            className: 'd-flex align-items-center',
+                            children: [iconEl, createEl('strong', { text: type })]
+                        }),
+                        createEl('small', { className: 'text-muted', text: timestamp })
+                    ]
+                }),
+                createEl('div', { className: 'mt-1', text: message })
+            ]
+        });
+        eventNode.style.borderLeft = `3px solid ${color}`;
+        eventNode.style.paddingLeft = '10px';
+
+        container.prepend(eventNode);
         
         // Keep only last 50 events
         const events = container.children;
@@ -735,16 +746,27 @@ class RustPlusProvider {
         // Show error in progress bar first, then hide it after 3 seconds
         this.showRegistrationError(title, message);
         
-        // Create a user-friendly error notification
-        const errorHtml = `
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <h6 class="alert-heading">
-                    <i class="bi bi-exclamation-triangle-fill"></i> ${title}
-                </h6>
-                <p class="mb-0">${message}</p>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        `;
+        // Created as nodes: `title` and `message` can contain upstream error text.
+        const closeButton = createEl('button', { className: 'btn-close' });
+        closeButton.type = 'button';
+        closeButton.setAttribute('data-bs-dismiss', 'alert');
+        closeButton.setAttribute('aria-label', 'Close');
+
+        const errorNode = createEl('div', {
+            className: 'alert alert-danger alert-dismissible fade show',
+            children: [
+                createEl('h6', {
+                    className: 'alert-heading',
+                    children: [
+                        createIcon('exclamation-triangle-fill'),
+                        document.createTextNode(` ${title}`)
+                    ]
+                }),
+                createEl('p', { className: 'mb-0', text: message }),
+                closeButton
+            ]
+        });
+        errorNode.setAttribute('role', 'alert');
         
         // Insert the error message at the top of the FCM token section (after progress bar hides)
         setTimeout(() => {
@@ -755,7 +777,7 @@ class RustPlusProvider {
                 existingAlerts.forEach(alert => alert.remove());
                 
                 // Insert new error alert
-                tokenSection.insertAdjacentHTML('afterbegin', errorHtml);
+                tokenSection.prepend(errorNode);
             }
         }, 3500); // Show alert after progress bar hides
         
@@ -915,22 +937,41 @@ class RustPlusProvider {
             ? new Date(tokenRefresh.nextAutoRefreshDate).toLocaleString()
             : '—';
 
-        let expiryLine = 'Expiry: unknown';
+        // Built as nodes: these values originate from server-provided refresh
+        // metadata, so they must not be parsed as markup. The countdown keeps
+        // its id so startCountdownTimer() can still find and update it.
+        const expiryRow = createEl('div');
         if (this.tokenExpiryTime) {
             const remaining = this.tokenExpiryTime - Date.now();
-            expiryLine = `Expires in: <strong id="tokenExpiryCountdown">${this.formatCountdown(remaining)}</strong> (${new Date(this.tokenExpiryTime).toLocaleString()})`;
+            expiryRow.append(
+                'Expires in: ',
+                createEl('strong', { id: 'tokenExpiryCountdown', text: this.formatCountdown(remaining) }),
+                ` (${new Date(this.tokenExpiryTime).toLocaleString()})`
+            );
+        } else {
+            expiryRow.textContent = 'Expiry: unknown';
         }
 
-        const inProgress = fcmListener.tokenRefreshInProgress
-            ? '<br><span class="text-primary">Token refresh in progress…</span>'
-            : '';
+        const rows = [
+            createEl('div', {
+                children: [createEl('strong', { text: 'Last auto refresh:' })]
+            }),
+            createEl('div', {
+                children: [createEl('strong', { text: 'Next scheduled auto refresh:' })]
+            }),
+            expiryRow
+        ];
+        rows[0].append(` ${lastRefreshText}`);
+        rows[1].append(` ${nextAutoText} (every ${autoDays} days)`);
 
-        refreshInfo.innerHTML = `
-            <div><strong>Last auto refresh:</strong> ${lastRefreshText}</div>
-            <div><strong>Next scheduled auto refresh:</strong> ${nextAutoText} (every ${autoDays} days)</div>
-            <div>${expiryLine}</div>
-            ${inProgress}
-        `;
+        if (fcmListener.tokenRefreshInProgress) {
+            rows.push(
+                createEl('br'),
+                createEl('span', { className: 'text-primary', text: 'Token refresh in progress…' })
+            );
+        }
+
+        refreshInfo.replaceChildren(...rows);
     }
 
     startCountdownTimer() {
@@ -992,15 +1033,23 @@ class RustPlusProvider {
         }
         
         tokenStatus.className = `token-status ${statusClass}`;
-        tokenStatus.innerHTML = `
-            <div class="d-flex align-items-center">
-                <i class="bi ${statusIcon} me-2"></i>
-                <div>
-                    <strong>${statusText}</strong><br>
-                    <small class="text-muted">${statusSubtext}</small>
-                </div>
-            </div>
-        `;
+        // statusText / statusSubtext embed server-reported expiry data, so build
+        // them as text nodes rather than markup.
+        tokenStatus.replaceChildren(
+            createEl('div', {
+                className: 'd-flex align-items-center',
+                children: [
+                    createEl('i', { className: `bi ${statusIcon} me-2` }),
+                    createEl('div', {
+                        children: [
+                            createEl('strong', { text: statusText }),
+                            createEl('br'),
+                            createEl('small', { className: 'text-muted', text: statusSubtext })
+                        ]
+                    })
+                ]
+            })
+        );
     }
 
     startPeriodicUpdates() {
@@ -1157,7 +1206,10 @@ class RustPlusProvider {
             
             if (progressText) {
                 progressText.className = 'text-danger small';
-                progressText.innerHTML = `<strong>${errorTitle}:</strong> ${errorMessage}`;
+                progressText.replaceChildren(
+                    createEl('strong', { text: `${errorTitle}:` }),
+                    ` ${errorMessage}`
+                );
             }
             
             // Hide the progress bar after 3 seconds

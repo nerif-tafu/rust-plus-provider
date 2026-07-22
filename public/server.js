@@ -234,16 +234,16 @@ class ServerPage {
         this.updateServerStatus(data.serverInfo.status || 'unknown');
         
         // Update data tabs
-        document.getElementById('serverInfoData').innerHTML = `<pre>${JSON.stringify(data.serverInfo, null, 2)}</pre>`;
-        document.getElementById('smartDevicesData').innerHTML = `<pre>${JSON.stringify(data.smartDevices, null, 2)}</pre>`;
-        document.getElementById('mapDataData').innerHTML = `<pre>${JSON.stringify(data.mapData, null, 2)}</pre>`;
+        renderJsonBlock('serverInfoData', data.serverInfo);
+        renderJsonBlock('smartDevicesData', data.smartDevices);
+        renderJsonBlock('mapDataData', data.mapData);
     }
 
     updateServerInfo(data) {
         console.log('Updating live server info:', data.serverInfo);
         
         // Update server info tab with live data
-        document.getElementById('serverInfoData').innerHTML = `<pre>${JSON.stringify(data.serverInfo, null, 2)}</pre>`;
+        renderJsonBlock('serverInfoData', data.serverInfo);
         
         // Update server header with live data if available
         if (data.serverInfo.name) {
@@ -264,7 +264,7 @@ class ServerPage {
         console.log('Updating live map data:', data.mapData);
         
         // Update map data tab with live data
-        document.getElementById('mapDataData').innerHTML = `<pre>${JSON.stringify(data.mapData, null, 2)}</pre>`;
+        renderJsonBlock('mapDataData', data.mapData);
         
         // Add live event
         this.addLiveEvent('Map Data', 'Live map and markers updated');
@@ -281,30 +281,45 @@ class ServerPage {
                           status === 'error' ? 'x-circle' : 'question-circle';
         
         statusElement.className = `badge bg-${statusClass} ms-2`;
-        statusElement.innerHTML = `<i class="bi bi-${statusIcon}"></i> ${status.charAt(0).toUpperCase() + status.slice(1)}`;
+        const statusLabel = String(status);
+        statusElement.replaceChildren(
+            createIcon(statusIcon),
+            ` ${statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1)}`
+        );
     }
 
     addLiveEvent(type, message) {
         const eventsContainer = document.getElementById('liveEvents');
         const eventId = `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
-        const eventHtml = `
-            <div class="live-event ${this.getEventClass(type)}" id="${eventId}">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <strong><i class="bi bi-${this.getEventIcon(type)}"></i> ${type}</strong>
-                        <div class="text-muted small">${message}</div>
-                    </div>
-                    <small class="text-muted">${new Date().toLocaleTimeString()}</small>
-                </div>
-            </div>
-        `;
-        
+        // Built as nodes rather than an HTML string: `type` and `message` carry
+        // server-supplied text and must not be parsed as markup.
+        const eventNode = createEl('div', {
+            className: `live-event ${this.getEventClass(type)}`,
+            id: eventId,
+            children: [
+                createEl('div', {
+                    className: 'd-flex justify-content-between align-items-start',
+                    children: [
+                        createEl('div', {
+                            children: [
+                                createEl('strong', {
+                                    children: [createIcon(this.getEventIcon(type)), document.createTextNode(` ${type}`)]
+                                }),
+                                createEl('div', { className: 'text-muted small', text: message })
+                            ]
+                        }),
+                        createEl('small', { className: 'text-muted', text: new Date().toLocaleTimeString() })
+                    ]
+                })
+            ]
+        });
+
         // Add to top of events
         if (eventsContainer.children.length === 1 && eventsContainer.children[0].textContent.includes('Waiting for events')) {
-            eventsContainer.innerHTML = eventHtml;
+            eventsContainer.replaceChildren(eventNode);
         } else {
-            eventsContainer.insertAdjacentHTML('afterbegin', eventHtml);
+            eventsContainer.prepend(eventNode);
         }
         
         // Keep only last 50 events

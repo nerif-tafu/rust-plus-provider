@@ -215,7 +215,7 @@ class ServersPage {
         const output = document.getElementById('serverInfoOutput');
         if (!output) return;
         
-        output.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        renderJsonBlock(output, data);
         this.updateLastUpdated('serverInfoLastUpdated');
     }
 
@@ -223,7 +223,7 @@ class ServersPage {
         const output = document.getElementById('mapDataOutput');
         if (!output) return;
         
-        output.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        renderJsonBlock(output, data);
         this.updateLastUpdated('mapDataLastUpdated');
     }
 
@@ -280,7 +280,7 @@ class ServersPage {
             alarms: serverData.alarms || []
         };
         
-        output.innerHTML = `<pre>${JSON.stringify(smartDevices, null, 2)}</pre>`;
+        renderJsonBlock(output, smartDevices);
         this.updateLastUpdated('smartDevicesLastUpdated');
     }
 

@@ -1,4 +1,41 @@
 // navigation.js - Shared navigation component
+
+// --- Safe DOM helpers -------------------------------------------------------
+// Values coming back from a Rust server (server names, player names, map
+// markers, error text) are controlled by server owners and other players, not
+// by us, so they must never reach innerHTML. Note that JSON.stringify does not
+// escape HTML either: a server name of `</pre><img src=x onerror=...>` inside a
+// stringified blob would execute. These helpers assign text and build nodes, so
+// the browser never parses the value as markup.
+
+/** Replace an element's contents with a <pre> block of pretty-printed JSON. */
+function renderJsonBlock(target, value) {
+    const el = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!el) return;
+    const pre = document.createElement('pre');
+    pre.textContent = JSON.stringify(value, null, 2);
+    el.replaceChildren(pre);
+}
+
+/** Create an element, assigning text via textContent rather than markup. */
+function createEl(tag, { className, id, text, children } = {}) {
+    const el = document.createElement(tag);
+    if (className) el.className = className;
+    if (id) el.id = id;
+    if (text !== undefined && text !== null) el.textContent = String(text);
+    if (children) el.append(...children.filter(Boolean));
+    return el;
+}
+
+/** Bootstrap icon element: <i class="bi bi-<name>"></i> */
+function createIcon(name) {
+    return createEl('i', { className: `bi bi-${name}` });
+}
+
+window.renderJsonBlock = renderJsonBlock;
+window.createEl = createEl;
+window.createIcon = createIcon;
+
 class NavigationManager {
     constructor() {
         this.servers = {};
