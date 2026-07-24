@@ -387,7 +387,7 @@ class ServerPage {
         const button = document.querySelector('button[onclick="serverPage.toggleAutoRefresh()"]');
         
         if (this.autoRefresh) {
-            button.innerHTML = '<i class="bi bi-pause-circle"></i> Stop Auto Refresh';
+            button.innerHTML = '<i class="mdi mdi-pause-circle"></i> Stop Auto Refresh';
             button.className = 'btn btn-sm btn-outline-warning';
             this.autoRefreshInterval = setInterval(() => {
                 this.loadServerData();
@@ -395,7 +395,7 @@ class ServerPage {
                 this.loadLiveMapData();
             }, 10000); // Refresh every 10 seconds
         } else {
-            button.innerHTML = '<i class="bi bi-play-circle"></i> Auto Refresh';
+            button.innerHTML = '<i class="mdi mdi-play-circle"></i> Auto Refresh';
             button.className = 'btn btn-sm btn-outline-secondary';
             if (this.autoRefreshInterval) {
                 clearInterval(this.autoRefreshInterval);

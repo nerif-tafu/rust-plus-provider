@@ -27,14 +27,50 @@ function createEl(tag, { className, id, text, children } = {}) {
     return el;
 }
 
-/** Bootstrap icon element: <i class="bi bi-<name>"></i> */
+// Icon pack: Material Design Icons, matching the shop helper and rust-breeder.
+// Callers still pass the old Bootstrap Icon names; this map translates them to
+// their MDI equivalent so the call sites did not all have to change.
+const ICON_MAP = {
+    'house': 'home',
+    'link-45deg': 'link-variant',
+    'database': 'database',
+    'book': 'book-open-variant',
+    'gear': 'cog',
+    'info-circle': 'information-outline',
+    'map': 'map',
+    'lightning': 'flash',
+    'server': 'server',
+    'arrow-clockwise': 'refresh',
+    'power': 'power',
+    'pencil': 'pencil',
+    'trash': 'delete',
+    'play-circle': 'play-circle',
+    'pause-circle': 'pause-circle',
+    'exclamation-triangle': 'alert-outline',
+    'exclamation-triangle-fill': 'alert',
+    'check-circle-fill': 'check-circle',
+    'check-circle': 'check-circle',
+    'question-circle': 'help-circle',
+    'toggle-on': 'toggle-switch',
+    'plus-circle': 'plus-circle',
+    'chat-dots': 'chat',
+    'x-circle': 'close-circle',
+    'geo-alt': 'map-marker',
+    'people': 'account-group',
+    'bell': 'bell',
+    'download': 'download'
+};
+
+/** MDI icon element from a Bootstrap-style name: <i class="mdi mdi-<mapped>"></i> */
 function createIcon(name) {
-    return createEl('i', { className: `bi bi-${name}` });
+    const mapped = ICON_MAP[name] || name;
+    return createEl('i', { className: `mdi mdi-${mapped}` });
 }
 
 window.renderJsonBlock = renderJsonBlock;
 window.createEl = createEl;
 window.createIcon = createIcon;
+window.ICON_MAP = ICON_MAP;
 
 // --- Shared top navigation bar ----------------------------------------------
 // Rendered here so every page shares one definition and stays in step. The

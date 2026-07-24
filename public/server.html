@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rust+ Provider - Server Details</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css" rel="stylesheet">
     <link href="shared.css" rel="stylesheet">
     <style>
         .live-event {
@@ -39,22 +39,22 @@
                 <ul class="nav nav-pills flex-column">
                     <li class="nav-item">
                         <a class="nav-link" href="/">
-                            <i class="bi bi-house"></i> Home
+                            <i class="mdi mdi-home"></i> Home
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/pairing">
-                            <i class="bi bi-link-45deg"></i> Server Pairing
+                            <i class="mdi mdi-link-variant"></i> Server Pairing
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/servers">
-                            <i class="bi bi-database"></i> Server Data
+                            <i class="mdi mdi-database"></i> Server Data
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/api-docs">
-                            <i class="bi bi-book"></i> API Documentation
+                            <i class="mdi mdi-book-open-variant"></i> API Documentation
                         </a>
                     </li>
                 </ul>
@@ -67,17 +67,17 @@
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h2 class="mb-0">
-                            <i class="bi bi-server"></i> <span id="serverName">Loading...</span>
+                            <i class="mdi mdi-server"></i> <span id="serverName">Loading...</span>
                             <span id="serverStatus" class="badge bg-secondary ms-2">
-                                <i class="bi bi-question-circle"></i> Unknown
+                                <i class="mdi mdi-help-circle"></i> Unknown
                             </span>
                         </h2>
                         <div class="btn-group">
                             <button class="btn btn-outline-primary" onclick="serverPage.refreshData()">
-                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                                <i class="mdi mdi-refresh"></i> Refresh
                             </button>
                             <button class="btn btn-outline-secondary" onclick="serverPage.toggleAutoRefresh()">
-                                <i class="bi bi-play-circle"></i> Auto Refresh
+                                <i class="mdi mdi-play-circle"></i> Auto Refresh
                             </button>
                         </div>
                     </div>
@@ -109,22 +109,22 @@
                                 <ul class="nav nav-tabs" id="dataTabs" role="tablist">
                                     <li class="nav-item" role="presentation">
                                         <button class="nav-link active" id="server-info-tab" data-bs-toggle="tab" data-bs-target="#server-info" type="button" role="tab">
-                                            <i class="bi bi-info-circle"></i> Server Info
+                                            <i class="mdi mdi-information-outline"></i> Server Info
                                         </button>
                                     </li>
                                     <li class="nav-item" role="presentation">
                                         <button class="nav-link" id="smart-devices-tab" data-bs-toggle="tab" data-bs-target="#smart-devices" type="button" role="tab">
-                                            <i class="bi bi-gear"></i> Smart Devices
+                                            <i class="mdi mdi-cog"></i> Smart Devices
                                         </button>
                                     </li>
                                     <li class="nav-item" role="presentation">
                                         <button class="nav-link" id="map-data-tab" data-bs-toggle="tab" data-bs-target="#map-data" type="button" role="tab">
-                                            <i class="bi bi-map"></i> Map & Markers
+                                            <i class="mdi mdi-map"></i> Map & Markers
                                         </button>
                                     </li>
                                     <li class="nav-item" role="presentation">
                                         <button class="nav-link" id="api-docs-tab" data-bs-toggle="tab" data-bs-target="#api-docs" type="button" role="tab">
-                                            <i class="bi bi-book"></i> API Docs
+                                            <i class="mdi mdi-book-open-variant"></i> API Docs
                                         </button>
                                     </li>
                                 </ul>
@@ -441,7 +441,7 @@ websocket.onmessage = function(event) {
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h5>Live Events</h5>
                                 <button class="btn btn-sm btn-outline-secondary" onclick="serverPage.clearEvents()">
-                                    <i class="bi bi-trash"></i> Clear
+                                    <i class="mdi mdi-delete"></i> Clear
                                 </button>
                             </div>
                             <div class="card-body">

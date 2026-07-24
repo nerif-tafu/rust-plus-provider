@@ -381,7 +381,7 @@ class RustPlusProvider {
         if (!servers || Object.keys(servers).length === 0) {
             container.innerHTML = `
                 <div class="text-center py-4">
-                    <i class="bi bi-server text-muted" style="font-size: 3rem;"></i>
+                    <i class="mdi mdi-server text-muted" style="font-size: 3rem;"></i>
                     <p class="mt-2 text-muted">No servers paired yet</p>
                     <p class="text-muted">Use the FCM token form above to start pairing servers</p>
                 </div>
@@ -457,19 +457,19 @@ class RustPlusProvider {
                 <button class="btn btn-sm btn-warning" 
                         onclick="rustProvider.toggleSwitch('${entityId}')" 
                         ${!isAvailable ? 'disabled' : ''}>
-                    <i class="bi bi-power"></i> ${buttonText}
+                    <i class="mdi mdi-power"></i> ${buttonText}
                 </button>
                 <button class="btn btn-sm btn-info" 
                         onclick="rustProvider.refreshEntity('${entityId}', 'switch')">
-                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                    <i class="mdi mdi-refresh"></i> Refresh
                 </button>
                 <button class="btn btn-sm btn-secondary" 
                         onclick="rustProvider.renameEntity('${entityId}', '${entity.entityName}', 'switch')">
-                    <i class="bi bi-pencil"></i> Rename
+                    <i class="mdi mdi-pencil"></i> Rename
                 </button>
                 <button class="btn btn-sm btn-danger" 
                         onclick="rustProvider.deleteEntity('${entityId}', 'switch')">
-                    <i class="bi bi-trash"></i> Delete
+                    <i class="mdi mdi-delete"></i> Delete
                 </button>
             `;
         } else if (type === 'alarm') {
@@ -477,15 +477,15 @@ class RustPlusProvider {
                 <button class="btn btn-sm btn-info" 
                         onclick="rustProvider.refreshEntity('${entityId}', 'alarm')"
                         ${!isAvailable ? 'disabled' : ''}>
-                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                    <i class="mdi mdi-refresh"></i> Refresh
                 </button>
                 <button class="btn btn-sm btn-secondary" 
                         onclick="rustProvider.renameEntity('${entityId}', '${entity.entityName}', 'alarm')">
-                    <i class="bi bi-pencil"></i> Rename
+                    <i class="mdi mdi-pencil"></i> Rename
                 </button>
                 <button class="btn btn-sm btn-danger" 
                         onclick="rustProvider.deleteEntity('${entityId}', 'alarm')">
-                    <i class="bi bi-trash"></i> Delete
+                    <i class="mdi mdi-delete"></i> Delete
                 </button>
             `;
         }
@@ -511,7 +511,8 @@ class RustPlusProvider {
         
         // Built as nodes rather than an HTML string: `type` and `message` carry
         // server-supplied text and must not be parsed as markup.
-        const iconEl = createEl('i', { className: `bi ${icon} me-2` });
+        const iconEl = createIcon(icon);
+        iconEl.classList.add('me-2');
         iconEl.style.color = color;
 
         const eventNode = createEl('div', {
@@ -672,7 +673,7 @@ class RustPlusProvider {
             
             // Always use yellow/warning class
             toggleButton.className = `btn btn-warning btn-sm`;
-            toggleButton.innerHTML = `<i class="bi bi-power"></i> ${buttonText}`;
+            toggleButton.innerHTML = `<i class="mdi mdi-power"></i> ${buttonText}`;
             
             console.log(`Updated switch button for entity ${entityId}: ${buttonText}`);
         }
@@ -681,22 +682,23 @@ class RustPlusProvider {
     }
 
     getEventIcon(type) {
+        // Bare Bootstrap-style names; createIcon maps them to MDI.
         const icons = {
-            'Entity Change': 'bi-toggle-on',
-            'Entity Paired': 'bi-plus-circle',
-            'Entity Renamed': 'bi-pencil',
-            'Team Chat': 'bi-chat-dots',
-            'Server Connected': 'bi-check-circle',
-            'Server Disconnected': 'bi-x-circle',
-            'Server Connecting': 'bi-arrow-clockwise',
-            'Server Error': 'bi-exclamation-triangle',
-            'Map Markers': 'bi-geo-alt',
-            'Team Info': 'bi-people',
-            'Server Info': 'bi-info-circle',
-            'Server Paired': 'bi-server',
-            'Connections Refreshed': 'bi-arrow-clockwise'
+            'Entity Change': 'toggle-on',
+            'Entity Paired': 'plus-circle',
+            'Entity Renamed': 'pencil',
+            'Team Chat': 'chat-dots',
+            'Server Connected': 'check-circle',
+            'Server Disconnected': 'x-circle',
+            'Server Connecting': 'arrow-clockwise',
+            'Server Error': 'exclamation-triangle',
+            'Map Markers': 'geo-alt',
+            'Team Info': 'people',
+            'Server Info': 'info-circle',
+            'Server Paired': 'server',
+            'Connections Refreshed': 'arrow-clockwise'
         };
-        return icons[type] || 'bi-bell';
+        return icons[type] || 'bell';
     }
 
     getEventColor(type) {
@@ -827,7 +829,7 @@ class RustPlusProvider {
         const container = document.getElementById('serversList');
         container.innerHTML = `
             <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle"></i>
+                <i class="mdi mdi-alert-outline"></i>
                 <strong>Connection Error</strong><br>
                 Unable to connect to Rust+ Provider. Please check if the server is running.
             </div>
@@ -869,7 +871,7 @@ class RustPlusProvider {
         tokenStatus.className = 'token-status token-valid';
         tokenStatus.innerHTML = `
             <div class="d-flex align-items-center">
-                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                <i class="mdi mdi-check-circle text-success me-2"></i>
                 <div>
                     <strong>FCM Token Valid</strong><br>
                     <small class="text-muted">Connected to ${Object.keys(servers).length} server(s) - token expiry info not available</small>
@@ -1001,7 +1003,7 @@ class RustPlusProvider {
             tokenStatus.className = 'token-status token-invalid';
             tokenStatus.innerHTML = `
                 <div class="d-flex align-items-center">
-                    <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                    <i class="mdi mdi-alert text-danger me-2"></i>
                     <div>
                         <strong>FCM Tokens Invalid or Expired</strong><br>
                         <small class="text-muted">Use Fetch tokens below to sign in and store new tokens</small>
@@ -1016,17 +1018,17 @@ class RustPlusProvider {
         
         if (tokenExpiry.isExpired) {
             statusClass = 'token-invalid';
-            statusIcon = 'bi-exclamation-triangle-fill text-danger';
+            statusIcon = 'mdi-alert text-danger';
             statusText = 'FCM Tokens Expired';
             statusSubtext = `Expired on ${new Date(tokenExpiry.expiryDate).toLocaleString()}`;
         } else if (tokenExpiry.expiryStatus === 'Expires soon') {
             statusClass = 'token-status token-warning';
-            statusIcon = 'bi-exclamation-triangle-fill text-warning';
+            statusIcon = 'mdi-alert text-warning';
             statusText = 'FCM Tokens Expire Soon';
             statusSubtext = `Expires in ${this.formatCountdown(tokenExpiry.timeUntilExpiry)}`;
         } else {
             statusClass = 'token-valid';
-            statusIcon = 'bi-check-circle-fill text-success';
+            statusIcon = 'mdi-check-circle text-success';
             statusText = 'FCM Token Valid';
             const serverCount = connectionStatus.totalServers || 0;
             statusSubtext = `Connected to ${serverCount} server(s)`;
@@ -1039,7 +1041,7 @@ class RustPlusProvider {
             createEl('div', {
                 className: 'd-flex align-items-center',
                 children: [
-                    createEl('i', { className: `bi ${statusIcon} me-2` }),
+                    createEl('i', { className: `mdi ${statusIcon} me-2` }),
                     createEl('div', {
                         children: [
                             createEl('strong', { text: statusText }),
@@ -1093,7 +1095,7 @@ class RustPlusProvider {
                 
                 <div class="mt-3">
                     <button class="btn btn-outline-danger btn-sm" onclick="rustProvider.deleteServer('${serverId}')">
-                        <i class="bi bi-trash"></i> Remove Server
+                        <i class="mdi mdi-delete"></i> Remove Server
                     </button>
                 </div>
             </div>
