@@ -1,112 +1,532 @@
-/* shared.css - Consistent styling across all pages */
+/*
+ * shared.css - Flat Terminal theme, applied across all pages.
+ *
+ * This project uses Bootstrap 5, which ships rounded corners, elevation
+ * shadows and a light palette. Rather than fighting it per component, the
+ * theme is applied by overriding Bootstrap's own --bs-* custom properties
+ * and then flattening shape globally. Pages also carry
+ * data-bs-theme="dark" so Bootstrap's built-in dark variants handle the
+ * components not overridden explicitly here.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Anonymous+Pro:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+:root {
+  --bg: #242827;
+  --surface: #2f2f2f;
+  --surface-raised: #3a3e3d;
+  --border: #4a4a4a;
+  --border-subtle: #3a3e3d;
+  --text: #ffffff;
+  --text-muted: #778899;
+  --accent: #ffffff;
+  --accent-text: #242827;
+  --accent-hover: #e5e5e5;
+  --success: #66bb6a;
+  --info: #64b5f6;
+  --warning: #ffd54f;
+  --error: #f87171;
+}
+
+/* Retheme Bootstrap itself */
+:root,
+[data-bs-theme='dark'] {
+  --bs-body-bg: var(--bg);
+  --bs-body-color: var(--text);
+  --bs-emphasis-color: var(--text);
+  --bs-secondary-color: var(--text-muted);
+  --bs-tertiary-color: var(--text-muted);
+  --bs-secondary-bg: var(--surface);
+  --bs-tertiary-bg: var(--surface);
+  --bs-border-color: var(--border);
+  --bs-border-radius: 0;
+  --bs-border-radius-sm: 0;
+  --bs-border-radius-lg: 0;
+  --bs-border-radius-xl: 0;
+  --bs-border-radius-pill: 0;
+  --bs-link-color: var(--text);
+  --bs-link-hover-color: var(--text);
+  --bs-code-color: var(--text);
+  --bs-heading-color: var(--text);
+  --bs-primary: var(--accent);
+  --bs-success: var(--success);
+  --bs-info: var(--info);
+  --bs-warning: var(--warning);
+  --bs-danger: var(--error);
+  --bs-primary-rgb: 255, 255, 255;
+  --bs-success-rgb: 102, 187, 106;
+  --bs-info-rgb: 100, 181, 246;
+  --bs-warning-rgb: 255, 213, 79;
+  --bs-danger-rgb: 248, 113, 113;
+}
+
+html,
 body {
-    font-family: 'Poppins', sans-serif;
-    background-color: #f8f9fa;
+  background-color: var(--bg);
+  color: var(--text);
+  font-size: 16px;
 }
 
-/* Main content panel styling */
+/* Monospace everywhere, but leave the icon font alone so glyphs render */
+body,
+body *:not(.bi):not([class^='bi-']):not([class*=' bi-']) {
+  font-family: 'Anonymous Pro', monospace !important;
+}
+
+/* Flat: nothing rounded, nothing raised */
+body,
+body * {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* Only 400 and 700 exist in this family; anything between renders wrong */
+b,
+strong,
+h1, h2, h3, h4, h5, h6,
+.fw-bold,
+.fw-semibold,
+.card-title,
+.nav-link.active {
+  font-weight: 700 !important;
+}
+
+.fw-light,
+.fw-normal {
+  font-weight: 400 !important;
+}
+
+a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+/* Layout ------------------------------------------------------------- */
+
+/* Sidebar and main panel are the two page surfaces */
+.col-md-3.bg-light {
+  background-color: var(--surface) !important;
+  border-right: 1px solid var(--border);
+  min-height: 100vh;
+}
+
 .col-md-9 {
-    background-color: white;
-    min-height: 100vh;
+  background-color: var(--bg);
+  min-height: 100vh;
 }
 
-.status-indicator {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    margin-right: 8px;
+hr {
+  border-color: var(--border);
+  opacity: 1;
 }
 
-.status-connected { background-color: #28a745; }
-.status-disconnected { background-color: #dc3545; }
-.status-connecting { background-color: #ffc107; }
+/* Navigation --------------------------------------------------------- */
 
-/* Status indicators for pairing page */
-.status-online { background-color: #28a745; }
-.status-offline { background-color: #dc3545; }
-.status-unknown { background-color: #6c757d; }
+/* Active nav item is the inverted block; inactive underlines on hover */
+.nav-pills .nav-link {
+  color: var(--text);
+  background-color: transparent;
+  font-weight: 400;
+}
+
+.nav-pills .nav-link:hover {
+  background-color: transparent;
+  text-decoration: underline;
+}
+
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+  background-color: var(--accent) !important;
+  color: var(--accent-text) !important;
+  font-weight: 700;
+}
+
+/* Panels and cards --------------------------------------------------- */
+
+.card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.card-header,
+.card-footer {
+  background-color: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.card-text {
+  color: var(--text-muted);
+}
 
 .server-card {
-    border: 1px solid #dee2e6;
-    border-radius: 10px;
-    transition: all 0.3s ease;
+  border: 1px solid var(--border);
+  transition: border-color 0.2s ease;
 }
 
 .server-card:hover {
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
+  border-color: var(--accent);
+  transform: none;
 }
 
-.json-output {
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 5px;
-    padding: 15px;
-    font-family: 'Courier New', monospace;
-    font-size: 0.9rem;
-    max-height: 400px;
-    overflow-y: auto;
+/* Coloured left edge carries the state, as with alerts */
+.entity-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.entity-card:hover {
+  transform: none;
+}
+
+.entity-card.alarm,
+.entity-card.switch {
+  border-left-color: var(--border);
+}
+
+.entity-card.switch.switch-on,
+.entity-card.alarm.alarm-on {
+  border-left-color: var(--success) !important;
+}
+
+.entity-card.switch.switch-off,
+.entity-card.alarm.alarm-off {
+  border-left-color: var(--error) !important;
+}
+
+/* Buttons ------------------------------------------------------------ */
+
+.btn {
+  text-transform: none;
+  font-weight: 400;
+}
+
+/* Primary is the inverted block */
+.btn-primary,
+.btn-success,
+.btn-info,
+.btn-warning {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn-primary:hover,
+.btn-success:hover,
+.btn-info:hover,
+.btn-warning:hover,
+.btn-primary:focus,
+.btn-success:focus,
+.btn-info:focus,
+.btn-warning:focus {
+  background-color: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--accent-text);
+}
+
+.btn-secondary,
+.btn-light,
+.btn-outline-primary,
+.btn-outline-secondary {
+  background-color: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn-secondary:hover,
+.btn-light:hover,
+.btn-outline-primary:hover,
+.btn-outline-secondary:hover {
+  background-color: transparent;
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.btn-danger,
+.btn-outline-danger {
+  background-color: transparent;
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.btn-danger:hover,
+.btn-outline-danger:hover {
+  background-color: var(--error);
+  border-color: var(--error);
+  color: var(--accent-text);
+}
+
+.btn:disabled,
+.btn.disabled {
+  opacity: 0.5;
+}
+
+/* Forms -------------------------------------------------------------- */
+
+.form-control,
+.form-select {
+  background-color: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: var(--bg);
+  border-color: var(--accent);
+  color: var(--text);
+  box-shadow: none !important;
+}
+
+.form-control::placeholder {
+  color: var(--text-muted);
+}
+
+.form-label,
+.form-text {
+  color: var(--text-muted);
+}
+
+.input-group-text {
+  background-color: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* Tables ------------------------------------------------------------- */
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--text);
+  --bs-table-border-color: var(--border-subtle);
+  color: var(--text);
+}
+
+.table > thead th {
+  background-color: var(--bg);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 700;
+  text-align: left;
+}
+
+/* State ------------------------------------------------------------- */
+
+/* Square, because nothing here is rounded. Always paired with a label. */
+.status-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  animation: none;
+}
+
+.status-connected,
+.status-online {
+  background-color: var(--success);
+}
+
+.status-disconnected,
+.status-offline {
+  background-color: var(--error);
+}
+
+.status-connecting {
+  background-color: var(--warning);
+}
+
+.status-unknown {
+  background-color: var(--text-muted);
+}
+
+/* Alerts and token banners: dark panel with a coloured edge, no icon */
+.alert,
+.token-status {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  color: var(--text);
+  padding: 16px;
+}
+
+.alert-success,
+.token-valid {
+  border-left-color: var(--success);
+}
+
+.alert-info,
+.api-doc {
+  border-left-color: var(--info);
+}
+
+.alert-warning,
+.token-warning {
+  border-left-color: var(--warning);
+}
+
+.alert-danger,
+.token-invalid {
+  border-left-color: var(--error);
 }
 
 .api-doc {
-    background-color: #e3f2fd;
-    border-left: 4px solid #2196f3;
-    padding: 15px;
-    margin: 10px 0;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--info);
+  padding: 16px;
+  margin: 10px 0;
+}
+
+.badge {
+  font-weight: 400;
+  border: 1px solid currentColor;
+  background-color: transparent !important;
+  padding: 2px 8px;
+}
+
+.text-primary { color: var(--text) !important; }
+.text-success { color: var(--success) !important; }
+.text-info    { color: var(--info) !important; }
+.text-warning { color: var(--warning) !important; }
+.text-danger  { color: var(--error) !important; }
+.text-muted   { color: var(--text-muted) !important; }
+
+.bg-light,
+.bg-white {
+  background-color: var(--surface) !important;
+  color: var(--text) !important;
+}
+
+/* Code and JSON output ----------------------------------------------- */
+
+.json-output,
+.api-endpoint,
+pre,
+code {
+  background-color: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.json-output {
+  padding: 15px;
+  font-size: 0.9rem;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .api-endpoint {
-    background-color: #f5f5f5;
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-family: 'Courier New', monospace;
-    font-size: 0.9rem;
+  padding: 8px 12px;
+  font-size: 0.9rem;
 }
 
-.entity-card {
-    border-left: 4px solid #007bff;
-    margin-bottom: 10px;
+#liveEvents {
+  background-color: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 15px;
 }
 
-.entity-card.alarm {
-    border-left-color: #6c757d; /* Gray as default */
+/* Overlays ----------------------------------------------------------- */
+
+.modal-content,
+.dropdown-menu,
+.offcanvas {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
 }
 
-.entity-card.switch {
-    border-left-color: #6c757d; /* Gray as default */
+.modal-header,
+.modal-footer {
+  border-color: var(--border);
 }
 
-/* Switch status-based border colors - higher specificity */
-.entity-card.switch.switch-on {
-    border-left-color: #28a745 !important; /* Green for on */
+.dropdown-item {
+  color: var(--text);
 }
 
-.entity-card.switch.switch-off {
-    border-left-color: #dc3545 !important; /* Red for off */
+.dropdown-item:hover,
+.dropdown-item:focus {
+  background-color: var(--surface-raised);
+  color: var(--text);
 }
 
-/* Alarm status-based border colors - higher specificity */
-.entity-card.alarm.alarm-on {
-    border-left-color: #28a745 !important; /* Green for on/active */
+/* Motion ------------------------------------------------------------- */
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
 }
 
-.entity-card.alarm.alarm-off {
-    border-left-color: #dc3545 !important; /* Red for off/inactive */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.token-status {
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
+/* Updated rows pulse the border to white, matching the house style */
+.server-card.updated,
+.entity-card.updated {
+  animation: highlight-pulse 1s ease-in-out;
 }
 
-.token-valid {
-    background-color: #d4edda;
-    border: 1px solid #c3e6cb;
+@keyframes highlight-pulse {
+  0%, 100% { border-color: var(--border); }
+  50% { border-color: var(--accent); }
 }
 
-.token-invalid {
-    background-color: #f8d7da;
-    border: 1px solid #f5c6cb;
+@media (prefers-reduced-motion: reduce) {
+  .fade-in,
+  .server-card.updated,
+  .entity-card.updated {
+    animation: none;
+  }
+}
+
+/* Scrollbars --------------------------------------------------------- */
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Responsive --------------------------------------------------------- */
+
+@media (max-width: 768px) {
+  .container-fluid {
+    padding: 0;
+  }
+
+  .col-md-3.bg-light {
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
 }
