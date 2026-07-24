@@ -109,21 +109,103 @@ a:hover {
 
 /* Layout ------------------------------------------------------------- */
 
-/* Sidebar and main panel are the two page surfaces */
-.col-md-3.bg-light {
-  background-color: var(--surface) !important;
-  border-right: 1px solid var(--border);
-  min-height: 100vh;
+/*
+ * The markup is a Bootstrap sidebar + main column. The house layout is a
+ * full-width top bar over a centred content column, so the grid is folded
+ * into a single stack and the sidebar is laid out horizontally. Doing it
+ * here rather than in markup keeps all five pages in step.
+ */
+.container-fluid,
+.container-fluid > .row {
+  display: block;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: none;
 }
 
-.col-md-9 {
+/* Sidebar becomes the top navigation bar */
+.container-fluid > .row > .col-md-3 {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  flex: none;
+  padding: 0 24px !important;
+  background-color: var(--surface) !important;
+  border-bottom: 1px solid var(--border);
+  border-right: none;
+}
+
+/* Brand */
+.container-fluid > .row > .col-md-3 > h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* The rule that separated sidebar sections is redundant in a bar */
+.container-fluid > .row > .col-md-3 > hr {
+  display: none;
+}
+
+/* Nav runs horizontally, and scrolls rather than wrapping when cramped */
+.container-fluid > .row > .col-md-3 > .nav-pills {
+  flex-direction: row !important;
+  flex-wrap: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.container-fluid > .row > .col-md-3 > .nav-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.container-fluid > .row > .col-md-3 .nav-item {
+  flex-shrink: 0;
+}
+
+/* Content is a centred column, as on the other house sites */
+.container-fluid > .row > .col-md-9 {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  flex: none;
   background-color: var(--bg);
-  min-height: 100vh;
+  min-height: 0;
+  padding: 24px 16px 48px !important;
 }
 
 hr {
   border-color: var(--border);
   opacity: 1;
+}
+
+/* Page heading follows the title + one-line description pattern */
+.col-md-9 > .mb-4 > h2,
+.col-md-9 > h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.col-md-9 > .mb-4 > p.text-muted,
+.col-md-9 > p.text-muted {
+  font-size: 0.85rem;
+  color: var(--text-muted) !important;
+}
+
+@media (max-width: 768px) {
+  .container-fluid > .row > .col-md-3 {
+    gap: 12px;
+    padding: 0 12px !important;
+  }
 }
 
 /* Navigation --------------------------------------------------------- */
