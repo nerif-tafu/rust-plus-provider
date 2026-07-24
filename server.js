@@ -17,9 +17,9 @@ const server = http.createServer((req, res) => {
   const urlPath = req.url.split('?')[0];
   let filePath;
   
-  // Handle specific routes
+  // Handle specific routes. The home page was removed; pairing is the landing.
   if (urlPath === '/') {
-    filePath = path.join(publicPath, 'index.html');
+    filePath = path.join(publicPath, 'pairing.html');
   } else if (urlPath === '/pairing') {
     filePath = path.join(publicPath, 'pairing.html');
   } else if (urlPath === '/servers') {

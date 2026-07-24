@@ -819,7 +819,7 @@ class RustPlusProvider {
     }
 
     refreshAllConnections() {
-        console.log('🔄 Refreshing all server connections...');
+        console.log('Refreshing all server connections...');
         this.sendMessage({ type: 'refresh_all_connections' });
     }
 

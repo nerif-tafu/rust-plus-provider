@@ -36,6 +36,49 @@ window.renderJsonBlock = renderJsonBlock;
 window.createEl = createEl;
 window.createIcon = createIcon;
 
+// --- Shared top navigation bar ----------------------------------------------
+// Rendered here so every page shares one definition and stays in step. The
+// active tab is derived from the current path.
+const NAV_TABS = [
+    { href: '/pairing', icon: 'link-45deg', label: 'Server Pairing', match: (p) => p === '/' || p.startsWith('/pairing') },
+    { href: '/servers', icon: 'database', label: 'Server Data', match: (p) => p.startsWith('/servers') || p.startsWith('/server') },
+    { href: '/api-docs', icon: 'book', label: 'API Documentation', match: (p) => p.startsWith('/api-docs') }
+];
+
+function renderNavbar() {
+    if (document.querySelector('.topbar')) return;
+    const path = window.location.pathname;
+
+    const tabs = NAV_TABS.map((t) => {
+        const active = t.match(path);
+        const link = createEl('a', {
+            className: 'topbar-tab' + (active ? ' active' : ''),
+            children: [createIcon(t.icon), createEl('span', { text: t.label })]
+        });
+        link.href = t.href;
+        if (active) link.setAttribute('aria-current', 'page');
+        return link;
+    });
+
+    const brand = createEl('a', { className: 'topbar-brand', text: 'Rust+ Provider' });
+    brand.href = '/pairing';
+
+    const header = createEl('header', {
+        className: 'topbar',
+        children: [brand, createEl('nav', { className: 'topbar-tabs', children: tabs })]
+    });
+
+    document.body.insertBefore(header, document.body.firstChild);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderNavbar);
+} else {
+    renderNavbar();
+}
+
+window.renderNavbar = renderNavbar;
+
 class NavigationManager {
     constructor() {
         this.servers = {};

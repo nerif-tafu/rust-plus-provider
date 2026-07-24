@@ -107,14 +107,87 @@ a:hover {
   text-decoration: underline;
 }
 
-/* Layout ------------------------------------------------------------- */
+/* Top navigation bar ------------------------------------------------- */
 
 /*
- * The markup is a Bootstrap sidebar + main column. The house layout is a
- * full-width top bar over a centred content column, so the grid is folded
- * into a single stack and the sidebar is laid out horizontally. Doing it
- * here rather than in markup keeps all five pages in step.
+ * Injected by navigation.js as the first element in <body>, so every page
+ * shares one definition. Matches the shop helper: a full-width dark bar with
+ * a brand on the left and a tab group whose active tab is an inverted white
+ * block. Sticky rather than fixed, so no scrollbar gutter maths is needed.
  */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  height: 56px;
+  padding: 0 16px;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.topbar-brand:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* Tabs scroll horizontally rather than wrapping when the window is narrow */
+.topbar-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.topbar-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.topbar-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.topbar-tab:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.topbar-tab.active {
+  background-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+.topbar-tab.active:hover {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+/* Layout ------------------------------------------------------------- */
+
+/* Content is a single centred column below the bar */
 .container-fluid,
 .container-fluid > .row {
   display: block;
@@ -124,62 +197,11 @@ a:hover {
   max-width: none;
 }
 
-/* Sidebar becomes the top navigation bar */
-.container-fluid > .row > .col-md-3 {
-  display: flex;
-  align-items: center;
-  gap: 24px;
+.page {
   width: 100%;
-  max-width: none;
-  min-height: 0;
-  flex: none;
-  padding: 0 24px !important;
-  background-color: var(--surface) !important;
-  border-bottom: 1px solid var(--border);
-  border-right: none;
-}
-
-/* Brand */
-.container-fluid > .row > .col-md-3 > h4 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-/* The rule that separated sidebar sections is redundant in a bar */
-.container-fluid > .row > .col-md-3 > hr {
-  display: none;
-}
-
-/* Nav runs horizontally, and scrolls rather than wrapping when cramped */
-.container-fluid > .row > .col-md-3 > .nav-pills {
-  flex-direction: row !important;
-  flex-wrap: nowrap;
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.container-fluid > .row > .col-md-3 > .nav-pills::-webkit-scrollbar {
-  display: none;
-}
-
-.container-fluid > .row > .col-md-3 .nav-item {
-  flex-shrink: 0;
-}
-
-/* Content is a centred column, as on the other house sites */
-.container-fluid > .row > .col-md-9 {
-  width: 100%;
-  max-width: 1100px;
+  max-width: 1000px;
   margin: 0 auto;
-  flex: none;
-  background-color: var(--bg);
-  min-height: 0;
-  padding: 24px 16px 48px !important;
+  padding: 24px 16px 48px;
 }
 
 hr {
@@ -188,44 +210,45 @@ hr {
 }
 
 /* Page heading follows the title + one-line description pattern */
-.col-md-9 > .mb-4 > h2,
-.col-md-9 > h2 {
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h2 {
   font-size: 1.3rem;
   font-weight: 700;
   margin-bottom: 4px;
 }
 
-.col-md-9 > .mb-4 > p.text-muted,
-.col-md-9 > p.text-muted {
+.page-header p {
   font-size: 0.85rem;
   color: var(--text-muted) !important;
+  margin: 0;
 }
 
-@media (max-width: 768px) {
-  .container-fluid > .row > .col-md-3 {
-    gap: 12px;
-    padding: 0 12px !important;
-  }
+/* In-page Bootstrap tabs (e.g. the Server Data sub-tabs) */
+.nav-tabs {
+  border-bottom: 1px solid var(--border);
+  gap: 4px;
 }
 
-/* Navigation --------------------------------------------------------- */
-
-/* Active nav item is the inverted block; inactive underlines on hover */
-.nav-pills .nav-link {
+.nav-tabs .nav-link {
   color: var(--text);
   background-color: transparent;
+  border: none;
   font-weight: 400;
+  padding: 8px 16px;
 }
 
-.nav-pills .nav-link:hover {
-  background-color: transparent;
+.nav-tabs .nav-link:hover {
+  border: none;
   text-decoration: underline;
 }
 
-.nav-pills .nav-link.active,
-.nav-pills .show > .nav-link {
-  background-color: var(--accent) !important;
-  color: var(--accent-text) !important;
+.nav-tabs .nav-link.active {
+  background-color: var(--accent);
+  color: var(--accent-text);
+  border: none;
   font-weight: 700;
 }
 
@@ -384,6 +407,91 @@ hr {
   color: var(--text);
 }
 
+/* House components --------------------------------------------------- */
+
+/* One consistent panel per logical group */
+.section {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.section-head > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.section-description {
+  font-size: 0.85rem;
+  color: var(--text-muted) !important;
+  max-width: 70ch;
+  margin: 0;
+}
+
+.section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Recessed panel for read-only detail */
+.inset {
+  background-color: var(--bg);
+  border: 1px solid var(--border);
+  padding: 16px;
+}
+
+/* Shared label/value grid so every read-only fact reads the same */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px 24px;
+  margin: 0;
+}
+
+.detail-grid dt {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.detail-grid dd {
+  margin: 0;
+  color: var(--text);
+}
+
+/* Status pill: colour + text, never colour alone */
+.status-pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.status-pill.is-ok { color: var(--success); border-color: var(--success); }
+.status-pill.is-warn { color: var(--warning); border-color: var(--warning); }
+.status-pill.is-error { color: var(--error); border-color: var(--error); }
+.status-pill.is-muted { color: var(--text-muted); border-color: var(--border); }
+
 /* Tables ------------------------------------------------------------- */
 
 .table {
@@ -460,12 +568,32 @@ hr {
   border-left-color: var(--error);
 }
 
+/* Endpoint card: a recessed panel inside a section */
 .api-doc {
-  background-color: var(--surface);
+  background-color: var(--bg);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--info);
   padding: 16px;
-  margin: 10px 0;
+  margin-bottom: 16px;
+}
+
+.api-doc h6 {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.api-doc p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.api-doc strong {
+  display: block;
+  margin-top: 12px;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .badge {
@@ -492,18 +620,31 @@ hr {
 
 .json-output,
 .api-endpoint,
+.code,
 pre,
 code {
-  background-color: var(--bg);
+  background-color: var(--surface);
   border: 1px solid var(--border);
   color: var(--text);
 }
 
+/* Code samples sit inside .api-doc (which is --bg), so they step up to
+   --surface to stay legible; overflow scrolls inside the block */
+.code {
+  display: block;
+  padding: 12px;
+  margin: 0;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+
 .json-output {
+  background-color: var(--bg);
   padding: 15px;
   font-size: 0.9rem;
   max-height: 400px;
-  overflow-y: auto;
+  overflow: auto;
 }
 
 .api-endpoint {
