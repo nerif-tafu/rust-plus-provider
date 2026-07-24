@@ -60,12 +60,9 @@ function renderNavbar() {
         return link;
     });
 
-    const brand = createEl('a', { className: 'topbar-brand', text: 'Rust+ Provider' });
-    brand.href = '/pairing';
-
     const header = createEl('header', {
         className: 'topbar',
-        children: [brand, createEl('nav', { className: 'topbar-tabs', children: tabs })]
+        children: [createEl('nav', { className: 'topbar-tabs', children: tabs })]
     });
 
     document.body.insertBefore(header, document.body.firstChild);

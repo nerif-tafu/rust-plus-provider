@@ -120,34 +120,20 @@ a:hover {
   top: 0;
   z-index: 1000;
   display: flex;
-  align-items: stretch;
-  gap: 16px;
-  height: 56px;
-  padding: 0 16px;
+  align-items: center;
+  height: 64px;
+  padding: 0 8px;
   background-color: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
-.topbar-brand {
-  display: flex;
-  align-items: center;
-  font-weight: 700;
-  white-space: nowrap;
-  flex-shrink: 0;
-  color: var(--text);
-  text-decoration: none;
-}
-
-.topbar-brand:hover {
-  color: var(--text);
-  text-decoration: none;
-}
-
-/* Tabs scroll horizontally rather than wrapping when the window is narrow */
+/* Tabs scroll horizontally rather than wrapping when the window is narrow.
+   They sit vertically centred in the bar (like the shop helper's buttons),
+   so the active white block has dark space above and below it. */
 .topbar-tabs {
   display: flex;
-  align-items: stretch;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
@@ -162,6 +148,7 @@ a:hover {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  height: 48px;
   padding: 0 16px;
   color: var(--text);
   text-decoration: none;
