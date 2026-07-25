@@ -668,16 +668,13 @@ class RustPlusProvider {
             }
         }
 
-        // Update the toggle button (for switches) - always yellow
+        // Update the toggle button label (for switches). Keep it the primary
+        // (inverted white) action, matching createEntityButtons.
         const toggleButton = buttonContainer.querySelector('.btn[onclick*="toggleSwitch"]');
         if (toggleButton) {
             const buttonText = isActive ? 'Turn Off' : 'Turn On';
-            
-            // Always use yellow/warning class
-            toggleButton.className = `btn btn-warning btn-sm`;
+            toggleButton.className = `btn btn-primary btn-sm`;
             toggleButton.innerHTML = `<i class="mdi mdi-power"></i> ${buttonText}`;
-            
-            console.log(`Updated switch button for entity ${entityId}: ${buttonText}`);
         }
 
         // Alarm status buttons are removed - no status button updates needed
