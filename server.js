@@ -26,8 +26,6 @@ const server = http.createServer((req, res) => {
     filePath = path.join(publicPath, 'servers.html');
   } else if (urlPath === '/api-docs') {
     filePath = path.join(publicPath, 'api-docs.html');
-  } else if (urlPath.startsWith('/servers?id=')) {
-    filePath = path.join(publicPath, 'server.html');
   } else {
     filePath = path.join(publicPath, urlPath);
   }
