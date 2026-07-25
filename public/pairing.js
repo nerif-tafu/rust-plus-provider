@@ -426,12 +426,12 @@ class RustPlusProvider {
             let statusBorderClass = '';
             
             html += `
-                <div class="entity-card ${className} ${statusBorderClass} p-2" data-entity-id="${entity.entityId}">
+                <div class="entity-card ${className} ${statusBorderClass} p-2" data-entity-id="${escapeHtml(entity.entityId)}">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
-                            <strong>${entity.entityName}</strong>
+                            <strong>${escapeHtml(entity.entityName)}</strong>
                             <br>
-                            <small class="text-muted">ID: ${entity.entityId} | Checked: ${lastChecked}</small>
+                            <small class="text-muted">ID: ${escapeHtml(entity.entityId)} | Checked: ${lastChecked}</small>
                         </div>
                     </div>
                     <div class="d-flex gap-2">
@@ -466,7 +466,7 @@ class RustPlusProvider {
                     <i class="mdi mdi-refresh"></i> Refresh
                 </button>
                 <button class="btn btn-sm btn-secondary"
-                        onclick="rustProvider.renameEntity('${entityId}', '${entity.entityName}', 'switch')">
+                        onclick="rustProvider.renameEntity('${entityId}', 'switch')">
                     <i class="mdi mdi-pencil"></i> Rename
                 </button>
                 <button class="btn btn-sm btn-danger"
@@ -482,7 +482,7 @@ class RustPlusProvider {
                     <i class="mdi mdi-refresh"></i> Refresh
                 </button>
                 <button class="btn btn-sm btn-secondary"
-                        onclick="rustProvider.renameEntity('${entityId}', '${entity.entityName}', 'alarm')">
+                        onclick="rustProvider.renameEntity('${entityId}', 'alarm')">
                     <i class="mdi mdi-pencil"></i> Rename
                 </button>
                 <button class="btn btn-sm btn-danger"
@@ -1085,9 +1085,9 @@ class RustPlusProvider {
                     <div>
                         <h6 class="mb-1 d-flex align-items-center">
                             <span class="status-indicator ${connectionStatus.class} me-2"></span>
-                            ${server.name}
+                            ${escapeHtml(server.name)}
                         </h6>
-                        <small class="text-muted">${server.ip}:${server.port}</small>
+                        <small class="text-muted">${escapeHtml(server.ip)}:${escapeHtml(server.port)}</small>
                     </div>
                 </div>
                 
@@ -1248,7 +1248,11 @@ class RustPlusProvider {
         });
     }
 
-    renameEntity(entityId, currentName, entityType) {
+    renameEntity(entityId, entityType) {
+        // Read the current name from the rendered card rather than passing it
+        // through the onclick attribute (textContent is the decoded, real name).
+        const card = document.querySelector(`[data-entity-id="${entityId}"]`);
+        const currentName = card ? (card.querySelector('strong')?.textContent || '') : '';
         const newName = prompt(`Enter new name for ${entityType}:`, currentName);
         if (newName && newName.trim() !== '' && newName !== currentName) {
             this.sendMessage({

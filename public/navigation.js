@@ -17,6 +17,20 @@ function renderJsonBlock(target, value) {
     el.replaceChildren(pre);
 }
 
+/**
+ * Escape a value for safe interpolation into an HTML string. Prefer createEl
+ * where practical; use this for the few places that still build markup by
+ * template string, so server-supplied names cannot inject markup.
+ */
+function escapeHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 /** Create an element, assigning text via textContent rather than markup. */
 function createEl(tag, { className, id, text, children } = {}) {
     const el = document.createElement(tag);
@@ -70,6 +84,7 @@ function createIcon(name) {
 window.renderJsonBlock = renderJsonBlock;
 window.createEl = createEl;
 window.createIcon = createIcon;
+window.escapeHtml = escapeHtml;
 window.ICON_MAP = ICON_MAP;
 
 // --- Shared top navigation bar ----------------------------------------------
