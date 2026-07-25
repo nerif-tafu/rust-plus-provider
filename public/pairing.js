@@ -380,10 +380,10 @@ class RustPlusProvider {
         
         if (!servers || Object.keys(servers).length === 0) {
             container.innerHTML = `
-                <div class="text-center py-4">
-                    <i class="mdi mdi-server text-muted" style="font-size: 3rem;"></i>
-                    <p class="mt-2 text-muted">No servers paired yet</p>
-                    <p class="text-muted">Use the FCM token form above to start pairing servers</p>
+                <div class="alert alert-info mb-0">
+                    <h3>No servers paired</h3>
+                    <p>No Rust+ servers are paired with this provider yet.</p>
+                    <p>Fetch tokens with the form above, then pair a server from the Rust+ mobile app.</p>
                 </div>
             `;
             return;
@@ -429,9 +429,9 @@ class RustPlusProvider {
                 <div class="entity-card ${className} ${statusBorderClass} p-2" data-entity-id="${entity.entityId}">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
-                            <strong class="text-dark">${entity.entityName}</strong>
+                            <strong>${entity.entityName}</strong>
                             <br>
-                            <small class="text-dark">ID: ${entity.entityId} | Checked: ${lastChecked}</small>
+                            <small class="text-muted">ID: ${entity.entityId} | Checked: ${lastChecked}</small>
                         </div>
                     </div>
                     <div class="d-flex gap-2">
@@ -453,37 +453,39 @@ class RustPlusProvider {
         
         if (type === 'switch') {
             const buttonText = isActive ? 'Turn Off' : 'Turn On';
+            // The toggle is the one primary (inverted white) action; the rest
+            // are ghost, with Delete on the danger edge.
             return `
-                <button class="btn btn-sm btn-warning" 
-                        onclick="rustProvider.toggleSwitch('${entityId}')" 
+                <button class="btn btn-sm btn-primary"
+                        onclick="rustProvider.toggleSwitch('${entityId}')"
                         ${!isAvailable ? 'disabled' : ''}>
                     <i class="mdi mdi-power"></i> ${buttonText}
                 </button>
-                <button class="btn btn-sm btn-info" 
+                <button class="btn btn-sm btn-secondary"
                         onclick="rustProvider.refreshEntity('${entityId}', 'switch')">
                     <i class="mdi mdi-refresh"></i> Refresh
                 </button>
-                <button class="btn btn-sm btn-secondary" 
+                <button class="btn btn-sm btn-secondary"
                         onclick="rustProvider.renameEntity('${entityId}', '${entity.entityName}', 'switch')">
                     <i class="mdi mdi-pencil"></i> Rename
                 </button>
-                <button class="btn btn-sm btn-danger" 
+                <button class="btn btn-sm btn-danger"
                         onclick="rustProvider.deleteEntity('${entityId}', 'switch')">
                     <i class="mdi mdi-delete"></i> Delete
                 </button>
             `;
         } else if (type === 'alarm') {
             return `
-                <button class="btn btn-sm btn-info" 
+                <button class="btn btn-sm btn-secondary"
                         onclick="rustProvider.refreshEntity('${entityId}', 'alarm')"
                         ${!isAvailable ? 'disabled' : ''}>
                     <i class="mdi mdi-refresh"></i> Refresh
                 </button>
-                <button class="btn btn-sm btn-secondary" 
+                <button class="btn btn-sm btn-secondary"
                         onclick="rustProvider.renameEntity('${entityId}', '${entity.entityName}', 'alarm')">
                     <i class="mdi mdi-pencil"></i> Rename
                 </button>
-                <button class="btn btn-sm btn-danger" 
+                <button class="btn btn-sm btn-danger"
                         onclick="rustProvider.deleteEntity('${entityId}', 'alarm')">
                     <i class="mdi mdi-delete"></i> Delete
                 </button>
@@ -702,22 +704,24 @@ class RustPlusProvider {
     }
 
     getEventColor(type) {
+        // House state palette only: success, error, warning, info, muted.
+        const SUCCESS = '#66bb6a', ERROR = '#f87171', WARNING = '#ffd54f', INFO = '#64b5f6', MUTED = '#778899';
         const colors = {
-            'Entity Change': '#28a745',
-            'Entity Paired': '#17a2b8',
-            'Entity Renamed': '#6c757d',
-            'Team Chat': '#6f42c1',
-            'Server Connected': '#28a745',
-            'Server Disconnected': '#dc3545',
-            'Server Connecting': '#ffc107',
-            'Server Error': '#dc3545',
-            'Map Markers': '#17a2b8',
-            'Team Info': '#6f42c1',
-            'Server Info': '#007bff',
-            'Server Paired': '#28a745',
-            'Connections Refreshed': '#17a2b8'
+            'Entity Change': SUCCESS,
+            'Entity Paired': INFO,
+            'Entity Renamed': MUTED,
+            'Team Chat': INFO,
+            'Server Connected': SUCCESS,
+            'Server Disconnected': ERROR,
+            'Server Connecting': WARNING,
+            'Server Error': ERROR,
+            'Map Markers': INFO,
+            'Team Info': INFO,
+            'Server Info': INFO,
+            'Server Paired': SUCCESS,
+            'Connections Refreshed': INFO
         };
-        return colors[type] || '#6c757d';
+        return colors[type] || MUTED;
     }
 
     deleteServer(serverId) {
@@ -1082,11 +1086,11 @@ class RustPlusProvider {
             <div class="server-card p-3 fade-in">
                 <div class="d-flex align-items-start mb-3">
                     <div>
-                        <h6 class="mb-1 text-dark d-flex align-items-center">
+                        <h6 class="mb-1 d-flex align-items-center">
                             <span class="status-indicator ${connectionStatus.class} me-2"></span>
                             ${server.name}
                         </h6>
-                        <small class="text-dark">${server.ip}:${server.port}</small>
+                        <small class="text-muted">${server.ip}:${server.port}</small>
                     </div>
                 </div>
                 
