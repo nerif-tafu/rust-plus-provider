@@ -910,7 +910,6 @@ class RustPlusProvider {
 
         const showHasTokens = hasValidTokens || hasStoredTokens;
         document.getElementById('tokenCredentialFields').style.display = showHasTokens ? 'none' : 'block';
-        document.getElementById('tokenProfileHint').style.display = showHasTokens ? 'block' : 'none';
         document.getElementById('tokenActionsNoTokens').style.display = showHasTokens ? 'none' : 'block';
         document.getElementById('tokenActionsHasTokens').style.display = showHasTokens ? 'block' : 'none';
 
@@ -931,7 +930,6 @@ class RustPlusProvider {
         const lastRefreshText = tokenRefresh.lastAutoRefreshDate
             ? new Date(tokenRefresh.lastAutoRefreshDate).toLocaleString()
             : 'Never';
-        const autoDays = fcmListener.autoRefreshIntervalDays || 5;
         const nextAutoText = tokenRefresh.nextAutoRefreshDate
             ? new Date(tokenRefresh.nextAutoRefreshDate).toLocaleString()
             : '—';
@@ -940,7 +938,7 @@ class RustPlusProvider {
         // metadata must not be parsed as markup).
         const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
         setText('tokenLastRefresh', lastRefreshText);
-        setText('tokenNextRefresh', `${nextAutoText} (every ${autoDays} days)`);
+        setText('tokenNextRefresh', nextAutoText);
 
         // Expiry keeps the countdown in its own <strong id> so the timer can
         // find and tick it.
@@ -949,8 +947,7 @@ class RustPlusProvider {
             if (this.tokenExpiryTime) {
                 const remaining = this.tokenExpiryTime - Date.now();
                 expiryEl.replaceChildren(
-                    createEl('strong', { id: 'tokenExpiryCountdown', text: this.formatCountdown(remaining) }),
-                    ` (${new Date(this.tokenExpiryTime).toLocaleString()})`
+                    createEl('strong', { id: 'tokenExpiryCountdown', text: this.formatCountdown(remaining) })
                 );
             } else {
                 expiryEl.textContent = 'Unknown';
