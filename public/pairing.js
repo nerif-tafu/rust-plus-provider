@@ -858,27 +858,24 @@ class RustPlusProvider {
         }
     }
 
+    // Set the single token status pill. state: ok | warn | error | muted.
+    setTokenPill(state, text) {
+        const pill = document.getElementById('tokenStatusPill');
+        if (!pill) return;
+        const cls = { ok: 'is-ok', warn: 'is-warn', error: 'is-error', muted: 'is-muted' }[state] || 'is-muted';
+        pill.className = `status-pill ${cls}`;
+        pill.textContent = text;
+    }
+
     updateTokenStatus(servers) {
-        const tokenStatus = document.getElementById('tokenStatus');
         const hasServers = servers && Object.keys(servers).length > 0;
-        
         if (!hasServers) {
             this.getConnectionStatus();
             return;
         }
-
-        // Show basic valid status with server count
-        // Note: Detailed token expiry info requires connection status data
-        tokenStatus.className = 'token-status token-valid';
-        tokenStatus.innerHTML = `
-            <div class="d-flex align-items-center">
-                <i class="mdi mdi-check-circle text-success me-2"></i>
-                <div>
-                    <strong>FCM Token Valid</strong><br>
-                    <small class="text-muted">Connected to ${Object.keys(servers).length} server(s) - token expiry info not available</small>
-                </div>
-            </div>
-        `;
+        // Detailed expiry needs connection status; a server list alone just
+        // confirms the tokens are working.
+        this.setTokenPill('ok', 'Valid');
     }
 
     formatCountdown(ms) {
@@ -917,20 +914,19 @@ class RustPlusProvider {
         document.getElementById('tokenActionsNoTokens').style.display = showHasTokens ? 'none' : 'block';
         document.getElementById('tokenActionsHasTokens').style.display = showHasTokens ? 'block' : 'none';
 
-        const refreshInfo = document.getElementById('tokenRefreshInfo');
+        const details = document.getElementById('tokenDetails');
         if (!showHasTokens) {
-            refreshInfo.style.display = 'none';
+            if (details) details.style.display = 'none';
             this.stopCountdownTimer();
             return;
         }
 
-        refreshInfo.style.display = 'block';
+        if (details) details.style.display = '';
         this.renderTokenRefreshInfo(fcmListener);
         this.startCountdownTimer();
     }
 
     renderTokenRefreshInfo(fcmListener) {
-        const refreshInfo = document.getElementById('tokenRefreshInfo');
         const tokenRefresh = fcmListener.tokenRefresh || {};
         const lastRefreshText = tokenRefresh.lastAutoRefreshDate
             ? new Date(tokenRefresh.lastAutoRefreshDate).toLocaleString()
@@ -940,41 +936,30 @@ class RustPlusProvider {
             ? new Date(tokenRefresh.nextAutoRefreshDate).toLocaleString()
             : '—';
 
-        // Built as nodes: these values originate from server-provided refresh
-        // metadata, so they must not be parsed as markup. The countdown keeps
-        // its id so startCountdownTimer() can still find and update it.
-        const expiryRow = createEl('div');
-        if (this.tokenExpiryTime) {
-            const remaining = this.tokenExpiryTime - Date.now();
-            expiryRow.append(
-                'Expires in: ',
-                createEl('strong', { id: 'tokenExpiryCountdown', text: this.formatCountdown(remaining) }),
-                ` (${new Date(this.tokenExpiryTime).toLocaleString()})`
-            );
-        } else {
-            expiryRow.textContent = 'Expiry: unknown';
-        }
+        // Fill the detail-grid values. Set via textContent (server-provided
+        // metadata must not be parsed as markup).
+        const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+        setText('tokenLastRefresh', lastRefreshText);
+        setText('tokenNextRefresh', `${nextAutoText} (every ${autoDays} days)`);
 
-        const rows = [
-            createEl('div', {
-                children: [createEl('strong', { text: 'Last auto refresh:' })]
-            }),
-            createEl('div', {
-                children: [createEl('strong', { text: 'Next scheduled auto refresh:' })]
-            }),
-            expiryRow
-        ];
-        rows[0].append(` ${lastRefreshText}`);
-        rows[1].append(` ${nextAutoText} (every ${autoDays} days)`);
+        // Expiry keeps the countdown in its own <strong id> so the timer can
+        // find and tick it.
+        const expiryEl = document.getElementById('tokenExpiry');
+        if (expiryEl) {
+            if (this.tokenExpiryTime) {
+                const remaining = this.tokenExpiryTime - Date.now();
+                expiryEl.replaceChildren(
+                    createEl('strong', { id: 'tokenExpiryCountdown', text: this.formatCountdown(remaining) }),
+                    ` (${new Date(this.tokenExpiryTime).toLocaleString()})`
+                );
+            } else {
+                expiryEl.textContent = 'Unknown';
+            }
+        }
 
         if (fcmListener.tokenRefreshInProgress) {
-            rows.push(
-                createEl('br'),
-                createEl('span', { className: 'text-primary', text: 'Token refresh in progress…' })
-            );
+            this.setTokenPill('warn', 'Refreshing…');
         }
-
-        refreshInfo.replaceChildren(...rows);
     }
 
     startCountdownTimer() {
@@ -997,62 +982,23 @@ class RustPlusProvider {
     }
 
     updateTokenStatusFromConnectionStatus(connectionStatus) {
-        const tokenStatus = document.getElementById('tokenStatus');
         const fcmListener = connectionStatus.fcmListener;
-        
+
         if (!fcmListener.hasValidTokens) {
-            tokenStatus.className = 'token-status token-invalid';
-            tokenStatus.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="mdi mdi-alert text-danger me-2"></i>
-                    <div>
-                        <strong>FCM Tokens Invalid or Expired</strong><br>
-                        <small class="text-muted">Use Fetch tokens below to sign in and store new tokens</small>
-                    </div>
-                </div>
-            `;
+            this.setTokenPill('error', 'Invalid or expired');
             return;
         }
-        
+
         const tokenExpiry = fcmListener.tokenExpiry;
-        let statusClass, statusIcon, statusText, statusSubtext;
-        
         if (tokenExpiry.isExpired) {
-            statusClass = 'token-invalid';
-            statusIcon = 'mdi-alert text-danger';
-            statusText = 'FCM Tokens Expired';
-            statusSubtext = `Expired on ${new Date(tokenExpiry.expiryDate).toLocaleString()}`;
+            this.setTokenPill('error', 'Expired');
         } else if (tokenExpiry.expiryStatus === 'Expires soon') {
-            statusClass = 'token-status token-warning';
-            statusIcon = 'mdi-alert text-warning';
-            statusText = 'FCM Tokens Expire Soon';
-            statusSubtext = `Expires in ${this.formatCountdown(tokenExpiry.timeUntilExpiry)}`;
+            this.setTokenPill('warn', 'Expiring soon');
         } else {
-            statusClass = 'token-valid';
-            statusIcon = 'mdi-check-circle text-success';
-            statusText = 'FCM Token Valid';
-            const serverCount = connectionStatus.totalServers || 0;
-            statusSubtext = `Connected to ${serverCount} server(s)`;
+            this.setTokenPill('ok', 'Valid');
         }
-        
-        tokenStatus.className = `token-status ${statusClass}`;
-        // statusText / statusSubtext embed server-reported expiry data, so build
-        // them as text nodes rather than markup.
-        tokenStatus.replaceChildren(
-            createEl('div', {
-                className: 'd-flex align-items-center',
-                children: [
-                    createEl('i', { className: `mdi ${statusIcon} me-2` }),
-                    createEl('div', {
-                        children: [
-                            createEl('strong', { text: statusText }),
-                            createEl('br'),
-                            createEl('small', { className: 'text-muted', text: statusSubtext })
-                        ]
-                    })
-                ]
-            })
-        );
+        // The server count is shown by the Paired Servers section; the expiry
+        // date and refresh schedule are shown in the token detail grid.
     }
 
     startPeriodicUpdates() {
