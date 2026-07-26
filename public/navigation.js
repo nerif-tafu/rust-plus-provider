@@ -113,7 +113,12 @@ function renderNavbar() {
 
     const header = createEl('header', {
         className: 'topbar',
-        children: [createEl('nav', { className: 'topbar-tabs', children: tabs })]
+        children: [
+            createEl('div', {
+                className: 'topbar-inner',
+                children: [createEl('nav', { className: 'topbar-tabs', children: tabs })]
+            })
+        ]
     });
 
     document.body.insertBefore(header, document.body.firstChild);

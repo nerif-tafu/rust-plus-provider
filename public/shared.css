@@ -119,12 +119,21 @@ a:hover {
   position: sticky;
   top: 0;
   z-index: 1000;
-  display: flex;
-  align-items: center;
   height: 64px;
-  padding: 0 8px;
   background-color: var(--surface);
   border-bottom: 1px solid var(--border);
+}
+
+/* The bar spans the window, but its tabs share the content column's width
+   and gutter, so the active tab's block lines up with the left edge of the
+   sections below it. */
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 16px;
 }
 
 /* Tabs scroll horizontally rather than wrapping when the window is narrow.
