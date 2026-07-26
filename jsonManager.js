@@ -4,7 +4,13 @@ const path = require('path');
 
 class JsonManager {
   constructor() {
-    this.configFile = path.join(process.cwd(), 'rustPlus.json');
+    // DATA_DIR points at a mounted volume in production so the FCM
+    // credentials and paired servers survive the container being recreated
+    // on an image update; without it the file lands in the image layer and
+    // every deploy loses the pairing. Defaults to the working directory for
+    // local development.
+    const dataDir = process.env.DATA_DIR || process.cwd();
+    this.configFile = path.join(dataDir, 'rustPlus.json');
   }
   
   // Reads the current configuration from rustPlus.json
